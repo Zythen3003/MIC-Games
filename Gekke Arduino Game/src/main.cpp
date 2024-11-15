@@ -7,6 +7,7 @@
 #include <Wire.h>
 #include <HardwareSerial.h>
 #include <Nunchuk.h>
+#include "InfraRood.h"
 
 #define NUNCHUK_ADDRESS 0x52
 #define WAIT		1000
@@ -16,13 +17,28 @@
 
 // what to show
 #define STATE
-//#define MEM
-//#define CAL
+
+// Initiate infrarood sensor
+InfraRood ir;
+
 
 // prototypes
 bool show_memory(void);
 bool show_state(void);
 bool show_calibration(void);
+InfraRood send(uint8_t data);
+volatile bool newDataAvailable = false;
+
+ISR(TIMER1_CAPT_vect) {
+    ir.processISR(); 
+    newDataAvailable = true; // Zet vlag
+}
+
+
+ISR(TIMER1_OVF_vect) {
+    // Behandel overloop (optioneel, afhankelijk van de toepassing)
+}
+
 
 /*
  * main
@@ -53,6 +69,8 @@ int main(void) {
 	Serial.print("-------- Nunchuk with Id: ");
 	Serial.println(Nunchuk.id);
 
+	ir.begin(); // Initialiseert timers, interrupts, en buffers.
+
 	// endless loop
 	while(1) {
 #ifdef STATE
@@ -79,6 +97,24 @@ int main(void) {
 
 		// wait a while
 		_delay_ms(WAIT);
+
+	// Zenden van een byte
+    ir.send(0x55); // Verstuur een byte via IR of Serial
+    _delay_ms(1000); // Wacht 1 seconde
+
+    // Ontvangen van een byte
+    if (ir.available()) {
+        uint8_t data = ir.receive();
+        // Doe iets met 'data', zoals doorsturen via Serial.
+        Serial.print("Ontvangen: ");
+        Serial.println(data, HEX);
+    }
+
+	if (newDataAvailable) {
+    newDataAvailable = false; // Reset de vlag
+    // Verwerk data
+}
+
 	}
 
 	return(0);
@@ -175,3 +211,4 @@ bool show_calibration(void)
 
 	return(true);
 }
+
