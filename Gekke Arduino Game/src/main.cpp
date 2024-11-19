@@ -7,7 +7,7 @@
 #include <Wire.h>
 #include <HardwareSerial.h>
 #include <Nunchuk.h>
-#include "InfraRood.h"
+#include <InfraRood.h>
 
 #define NUNCHUK_ADDRESS 0x52
 #define WAIT		1000
@@ -15,35 +15,25 @@
 #define CHUNKSIZE	32
 #define BUFFERLEN	256
 
+// LED pin
+#define LED_PIN     PD6 // Pas deze pin aan naar de pin die je gebruikt voor de LED
+
 // what to show
 #define STATE
-
-// Initiate infrarood sensor
-InfraRood ir;
-
 
 // prototypes
 bool show_memory(void);
 bool show_state(void);
 bool show_calibration(void);
-InfraRood send(uint8_t data);
-volatile bool newDataAvailable = false;
 
-ISR(TIMER1_CAPT_vect) {
-    ir.processISR(); 
-    newDataAvailable = true; // Zet vlag
-}
-
-
-ISR(TIMER1_OVF_vect) {
-    // Behandel overloop (optioneel, afhankelijk van de toepassing)
-}
+InfraRood ir; // Infrarood object
 
 
 /*
  * main
  */
 int main(void) {
+
 	// enable global interrupts
 	sei();
 
@@ -52,6 +42,11 @@ int main(void) {
 
 	// join I2C bus as master
 	Wire.begin();
+ 	// Initialisatie van de infrarood sensor
+    ir.begin();
+
+    // Stel de LED-pin in als uitgang
+    DDRD |= (1 << LED_PIN); // Zet LED-pin als output
 
 	// handshake with nunchuk
 	Serial.print("-------- Connecting to nunchuk at address 0x");
@@ -69,7 +64,6 @@ int main(void) {
 	Serial.print("-------- Nunchuk with Id: ");
 	Serial.println(Nunchuk.id);
 
-	ir.begin(); // Initialiseert timers, interrupts, en buffers.
 
 	// endless loop
 	while(1) {
@@ -95,26 +89,16 @@ int main(void) {
 		}
 #endif
 
-		// wait a while
-		_delay_ms(WAIT);
+		// Als de Z-knop ingedrukt is, stuur een infrarood signaal
+        if (Nunchuk.state.z_button) {
+            ir.send(0x55); // Stuur een voorbeeld datacode (0x55)
+            PORTD |= (1 << LED_PIN); // Zet de LED aan
+        } else {
+            PORTD &= ~(1 << LED_PIN); // Zet de LED uit
+        }
 
-	// Zenden van een byte
-    ir.send(0x55); // Verstuur een byte via IR of Serial
-    _delay_ms(1000); // Wacht 1 seconde
-
-    // Ontvangen van een byte
-    if (ir.available()) {
-        uint8_t data = ir.receive();
-        // Doe iets met 'data', zoals doorsturen via Serial.
-        Serial.print("Ontvangen: ");
-        Serial.println(data, HEX);
-    }
-
-	if (newDataAvailable) {
-    newDataAvailable = false; // Reset de vlag
-    // Verwerk data
-}
-
+        // Korte wachttijd om de Nunchuk regelmatig bij te werken
+        _delay_ms(WAIT);
 	}
 
 	return(0);
