@@ -8,6 +8,15 @@
 #include <HardwareSerial.h>
 #include <Nunchuk.h>
 
+#include <avr/io.h>
+#include <avr/interrupt.h>
+#include <Adafruit_ILI9341.h>
+
+// Define the pins for the ILI9341
+#define TFT_CS     10
+#define TFT_DC     9
+
+// Initialize ILI9341 with the pins defined above
 #define NUNCHUK_ADDRESS 0x52
 #define WAIT		1000
 #define BAUDRATE	9600
@@ -23,6 +32,13 @@
 bool show_memory(void);
 bool show_state(void);
 bool show_calibration(void);
+int getColor();
+
+Adafruit_ILI9341 tft = Adafruit_ILI9341(TFT_CS, TFT_DC);
+
+void loop() {
+  // Add your drawing code here
+}
 
 /*
  * main
@@ -53,35 +69,47 @@ int main(void) {
 	Serial.print("-------- Nunchuk with Id: ");
 	Serial.println(Nunchuk.id);
 
+	tft.begin();
+	tft.setRotation(1);  // Adjust as needed for display orientation
+	tft.fillScreen(ILI9341_BLACK);
+	tft.setTextColor(ILI9341_WHITE);
+	tft.setTextSize(2);
+	tft.setCursor(10, 10);
+	tft.println("Hello, ILI9341!");
+	tft.setCursor(0, 0);
+
+	// tft.drawRect(0, 0, 320, 240, ILI9341_CYAN);
+
 	// endless loop
+	uint8_t prevX;
+	uint8_t prevY;
 	while(1) {
-#ifdef STATE
 		if (!show_state()) {
 			Serial.println("******** No nunchuk found");
 			Serial.flush();
 			return(1);
 		}
-#endif
-#ifdef MEM
-		if (!show_memory()) {
-			Serial.println("******** No nunchuk found");
-			Serial.flush();
-			return(1);
-		}
-#endif
-#ifdef CAL
-		if (!show_calibration()) {
-			Serial.println("******** No nunchuk found");
-			Serial.flush();
-			return(1);
-		}
-#endif
+
+		tft.fillCircle(map(prevX, 0, 255, 0, 320), prevY, 10, ILI9341_BLACK);
+		prevX = Nunchuk.state.joy_x_axis;
+		prevY = -map(Nunchuk.state.joy_y_axis, 0, 255, 0, 240) + 240;
+		tft.fillCircle(map(prevX, 0, 255, 0, 320), prevY, 10, getColor());
 
 		// wait a while
-		_delay_ms(WAIT);
+		// _delay_ms(WAIT);
 	}
 
 	return(0);
+}
+
+int getColor() {
+	if (Nunchuk.state.c_button)
+		return ILI9341_MAGENTA;
+
+	if (Nunchuk.state.z_button)
+		return ILI9341_DARKGREEN;
+
+	return ILI9341_BLUE;
 }
 
 bool show_memory(void)
@@ -114,29 +142,29 @@ bool show_state(void)
 {
 	if (!Nunchuk.getState(NUNCHUK_ADDRESS))
 		return (false);
-	Serial.println("------State data--------------------------");
-	Serial.print("Joy X: ");
-	Serial.print(Nunchuk.state.joy_x_axis, HEX);
-	Serial.print("\t\tAccel X: ");
-	Serial.print(Nunchuk.state.accel_x_axis, HEX);
-	Serial.print("\t\tButton C: ");
-	Serial.println(Nunchuk.state.c_button, HEX);
+// 	Serial.println("------State data--------------------------");
+// 	Serial.print("Joy X: ");
+// 	Serial.print(Nunchuk.state.joy_x_axis, HEX);
+// 	Serial.print("\t\tAccel X: ");
+// 	Serial.print(Nunchuk.state.accel_x_axis, HEX);
+// 	Serial.print("\t\tButton C: ");
+// 	Serial.println(Nunchuk.state.c_button, HEX);
 
-	Serial.print("Joy Y: ");
-	Serial.print(Nunchuk.state.joy_y_axis, HEX);
-	Serial.print("\t\tAccel Y: ");
-	Serial.print(Nunchuk.state.accel_y_axis, HEX);
-	Serial.print("\t\tButton Z: ");
-	Serial.println(Nunchuk.state.z_button, HEX);
+// 	Serial.print("Joy Y: ");
+// 	Serial.print(Nunchuk.state.joy_y_axis, HEX);
+// 	Serial.print("\t\tAccel Y: ");
+// 	Serial.print(Nunchuk.state.accel_y_axis, HEX);
+// 	Serial.print("\t\tButton Z: ");
+// 	Serial.println(Nunchuk.state.z_button, HEX);
 
-	Serial.print("\t\t\tAccel Z: ");
-	Serial.println(Nunchuk.state.accel_z_axis, HEX);
+// 	Serial.print("\t\t\tAccel Z: ");
+// 	Serial.println(Nunchuk.state.accel_z_axis, HEX);
 
-  Serial.print("Button C: ");
-  Serial.println(Nunchuk.state.c_button ? "Pressed" : "Released");
+//   Serial.print("Button C: ");
+//   Serial.println(Nunchuk.state.c_button ? "Pressed" : "Released");
 
-  Serial.print("Button Z: ");
-  Serial.println(Nunchuk.state.z_button ? "Pressed" : "Released");
+//   Serial.print("Button Z: ");
+//   Serial.println(Nunchuk.state.z_button ? "Pressed" : "Released");
 
 	return(true);
 }
