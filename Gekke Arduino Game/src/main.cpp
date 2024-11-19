@@ -1,18 +1,24 @@
-#include <Arduino.h>
+#include <avr/io.h>
+#include <avr/interrupt.h>
+#include <Adafruit_ILI9341.h>
 
-// put function declarations here:
-int myFunction(int, int);
+// Define the pins for the ILI9341
+#define TFT_CS     10
+#define TFT_DC     9
+
+// Initialize ILI9341 with the pins defined above
+Adafruit_ILI9341 tft = Adafruit_ILI9341(TFT_CS, TFT_DC);
 
 void setup() {
-  // put your setup code here, to run once:
-  int result = myFunction(2, 3);
+  tft.begin();
+  tft.setRotation(1);  // Adjust as needed for display orientation
+  tft.fillScreen(ILI9341_BLACK);
+  tft.setTextColor(ILI9341_WHITE);
+  tft.setTextSize(2);
+  tft.setCursor(10, 10);
+  tft.println("Hello, ILI9341!");
 }
 
 void loop() {
-  // put your main code here, to run repeatedly:
-}
-
-// put function definitions here:
-int myFunction(int x, int y) {
-  return x + y;
+  // Add your drawing code here
 }
