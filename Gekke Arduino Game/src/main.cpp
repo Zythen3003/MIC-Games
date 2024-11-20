@@ -81,8 +81,7 @@ int main(void) {
 	// tft.drawRect(0, 0, 320, 240, ILI9341_CYAN);
 
 	// endless loop
-	uint8_t prevX;
-	uint8_t prevY;
+	uint8_t prevX, prevY, curX, curY;
 	while(1) {
 		if (!show_state()) {
 			Serial.println("******** No nunchuk found");
@@ -90,10 +89,16 @@ int main(void) {
 			return(1);
 		}
 
-		tft.fillCircle(map(prevX, 0, 255, 0, 320), prevY, 10, ILI9341_BLACK);
-		prevX = Nunchuk.state.joy_x_axis;
-		prevY = -map(Nunchuk.state.joy_y_axis, 0, 255, 0, 240) + 240;
-		tft.fillCircle(map(prevX, 0, 255, 0, 320), prevY, 10, getColor());
+		curX = Nunchuk.state.joy_x_axis;
+		curY = -map(Nunchuk.state.joy_y_axis, 0, 255, 0, 240) + 240;
+
+		if (prevX != curX || prevY != curY)
+			tft.fillCircle(map(prevX, 0, 255, 0, 320), prevY, 10, ILI9341_BLACK);
+
+		tft.fillCircle(map(curX, 0, 255, 0, 320), curY, 10, getColor());
+
+		prevX = curX;
+		prevY = curY;
 
 		// wait a while
 		// _delay_ms(WAIT);
