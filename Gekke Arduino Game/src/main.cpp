@@ -5,9 +5,10 @@
 // Define the pins for the ILI9341
 #define TFT_CS     10
 #define TFT_DC     9
+#define TFT_RST 8  // Reset (kan optioneel zijn)
 
 // Initialize ILI9341 with the pins defined above
-Adafruit_ILI9341 tft = Adafruit_ILI9341(TFT_CS, TFT_DC);
+Adafruit_ILI9341 tft = Adafruit_ILI9341(TFT_CS, TFT_DC, TFT_RST );
 
 void setup() {
   tft.begin();
@@ -22,3 +23,4 @@ void setup() {
 void loop() {
   // Add your drawing code here
 }
+
