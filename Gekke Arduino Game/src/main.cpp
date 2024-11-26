@@ -26,6 +26,9 @@ volatile uint16_t toggleCount = 0; // keeps track of the number of toggles by IR
 
 volatile uint16_t dataToSend; // 16 bit integer sent via IR
 
+bool isSending = false;
+
+
 /*
   used to track which bit should be sent,
   maximum value 32 unless sending new bits, in which case it is set to 64
@@ -133,18 +136,15 @@ uint16_t recievedBits = 0;
 
 void resetRecieveIR(void) // resets all values needed in recieveIR to their starting values
 {
+  // Serial.println("IR Reset");
+  isSending = false;
   recievingIR = false;
   currentRecieveStatus = initialOne;
   readCount = 0;
 }
 
-/*
-  Function used by TIMER0 to recieve IR
-*/
 void recieveIR(void)
 {
-    // tft.setCursor(10, 30);
-    // tft.println("recieving");
   static bool previousValue;
   static uint8_t bitCount; // used to track the number of bits read so far 
   static uint16_t currentBits; // temporary variable to keep track of bits
@@ -152,8 +152,6 @@ void recieveIR(void)
   switch (currentRecieveStatus)
   {
   case initialOne: // checks for 9ms 1
-    // tft.setCursor(10, 40);
-    // tft.print("InitialOne recieving beginning");
     if (readCount < INITIALONEDURATION - ALLOWEDINITIALVARIANCE)
     {
       if (getRecieverStatus())
@@ -164,9 +162,6 @@ void recieveIR(void)
       {
         resetRecieveIR();
       }
-    //   tft.fillRect(0, 40, 20, 25, ILI9341_WHITE);
-    //   tft.println(readCount);
-        Serial.print(readCount);
     }
     else
     {
@@ -176,8 +171,6 @@ void recieveIR(void)
       }
       else if (!getRecieverStatus())
       {
-        // tft.setCursor(10, 40);
-        // tft.println("To initialZero");
         currentRecieveStatus = initialZero;
         readCount = 0;
       }
@@ -206,14 +199,12 @@ void recieveIR(void)
   case dataBits: // reads data bits
     if (readCount == TOGGLENUMBER / 2)
     {
-        Serial.print('1');
       currentBits = (currentBits << 1);
       currentBits |= previousValue;
       previousValue = getRecieverStatus();
     }
     else if (readCount == TOGGLENUMBER)
     {
-        Serial.print('0');
       readCount = 0;
       bitCount++;
     }
@@ -226,13 +217,18 @@ void recieveIR(void)
     }
     break;
   case inverseBits: // currently only used for resetting and setting recievedBits, might be used to check inverse later
-    // tft.setCursor(10, 60);
-    // tft.println("complete");
-    // tft.setCursor(10, 80);
-    // tft.println(currentBits);
-    Serial.print("recieve done ");
-    Serial.println(currentBits);
     recievedBits = currentBits;
+    
+    Serial.print(F("IR Data Received: 0b"));
+    Serial.println(recievedBits, BIN);
+    Serial.print(F("suppose to be Data Received: 0x"));
+    Serial.println(0b1010101010101010, BIN); // Print received data in hexadecimal format
+
+    if (recievedBits == 0b0000000000000000)
+      tft.fillScreen(ILI9341_MAGENTA);
+    if (recievedBits == 0b0000000000000001)
+      tft.fillScreen(ILI9341_RED);
+    
     resetRecieveIR();
     break;
   }
@@ -273,13 +269,13 @@ ISR(TIMER0_COMPA_vect)
   if (sendingIR)
   {
     sendIR();
-    tft.setCursor(10,10);
-    tft.println("sending");
+    // tft.setCursor(10,10);
+    // tft.println("sending");
   }
   else if (bitTurn >= DATALENGTH) // makes sure the IR emitter is off while idle
   {
-    tft.setCursor(150, 10);
-    tft.print("recieving else");
+    // tft.setCursor(150, 10);
+    // tft.print("recieving else");
     sendZero();
     if (recievingIR)
     {
@@ -293,8 +289,8 @@ void timerSetup(void)
 {
   TIMSK0 |= (1 << OCIE0A); // enable comp match a interrupt
   TCCR0A |= (1 << WGM01);  // CTC-mode
-  OCR0A = 210;             // set TOP to 210
-  TCCR0B |= (1 << CS00);   // no prescaler
+  OCR0A = 52;              // Set compare match value for 38kHz
+  TCCR0B |= (1 << CS01);   // Prescaler of 8
 }
 
 
@@ -317,19 +313,20 @@ void setup(void)
 /*
   Sets the variables needed to send bits, returns false if not possible (e.g. when sending or recieving IR)
 */
+
 bool sendBits(uint16_t bitsToSend)
 {
-    tft.setCursor(100, 10);
+  isSending = true;
   if (!sendingIR && !recievingIR)
   {
-    tft.println("true");
+    // tft.println("true");
     dataToSend = bitsToSend;
     bitTurn = 64;
     sendingIR = true;
     return true;
   }
 
-    tft.println("false");
+    // tft.println("false");
   return false;
 }
 
@@ -345,9 +342,9 @@ int main(void)
 	Nunchuk.begin(NUNCHUK_ADDRESS);
 
 	tft.setRotation(1);  // Adjust as needed for display orientation
-    tft.setTextColor(ILI9341_BLACK);
-    tft.setTextSize(2);
-    tft.setCursor(10, 10);
+  tft.setTextColor(ILI9341_BLACK);
+  tft.setTextSize(2);
+  tft.setCursor(10, 10);
 
   uint16_t posX = ILI9341_TFTWIDTH / 2;
   uint16_t posY = ILI9341_TFTHEIGHT / 2;
@@ -356,7 +353,7 @@ int main(void)
   tft.fillScreen(ILI9341_WHITE);
 
   tft.fillCircle(posX, posY, RADIUS_PLAYER, ILI9341_BLUE);
-  sendBits(0b1000101110111001);
+  // sendBits(0b0100010110101010);
 
   while (1)
   {
@@ -365,6 +362,18 @@ int main(void)
         // tft.println("dsajdslk");
       updateDisplay(posXp, posYp);
       ticksSinceLastUpdate = 0;
+    }
+
+    if (Nunchuk.state.c_button && !isSending) {
+		  sendBits(0b0000000000000000);
+    } 
+
+    if (Nunchuk.state.z_button && !isSending) {
+      sendBits(0b0000000000000001);
+    }
+
+    if (Nunchuk.state.c_button || Nunchuk.state.z_button) {
+      Serial.println(isSending);
     }
   }
   return 0;
