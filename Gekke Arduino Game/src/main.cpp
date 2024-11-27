@@ -5,29 +5,27 @@
 #include "Nunchuk.h"
 #include <HardwareSerial.h>
 
-#define TOGGLENUMBER 38 // number of times the IR emitter toggles to send one bit
-#define TFT_DC 9
-#define TFT_CS 10
-#define BAUDRATE 9600
-#define CHUNKSIZE 32
-#define BUFFERLEN 256
-#define NUNCHUK_ADDRESS 0x52
-#define RADIUS_PLAYER 5
-#define INITIALONEDURATION 684    // 9ms
-#define INITIALZERODURATION 342   // 4.5ms
-#define DATALENGTH 32             // total amount of bits sent, including logical inverse
-#define ALLOWEDINITIALVARIANCE 32 // allowed variance for initial one and zero
+#define TOGGLENUMBER 38 // Number of toggles for IR emitter to send one bit
+#define TFT_DC 9  // Pin for TFT Data/Command control
+#define TFT_CS 10 // Pin for TFT Chip Select
+#define BAUDRATE 9600  // Serial communication baud rate
+#define CHUNKSIZE 32  // Size of data chunks
+#define BUFFERLEN 256  // Size of buffer for data
+#define NUNCHUK_ADDRESS 0x52  // I2C address for the Nunchuk
+#define RADIUS_PLAYER 5  // Radius of the player's circle on the display
+#define INITIALONEDURATION 684    // Duration for sending '1' (9ms)
+#define INITIALZERODURATION 342   // Duration for sending '0' (4.5ms)
+#define DATALENGTH 32             // Total amount of bits sent, including logical inverse
+#define ALLOWEDINITIALVARIANCE 32 // Allowed variance for initial one and zero
 
+// Adafruit TFT display object
 Adafruit_ILI9341 tft = Adafruit_ILI9341(TFT_CS, TFT_DC);
 
-volatile uint16_t ticksSinceLastUpdate = 0; // used to refresh display at a consistent rate
-
-volatile uint16_t toggleCount = 0; // keeps track of the number of toggles by IR emitter
-
-volatile uint16_t dataToSend; // 16 bit integer sent via IR
-
-bool isSending = false;
-
+// Global variables
+volatile uint16_t ticksSinceLastUpdate = 0; // Counter for timing to refresh the display
+volatile uint16_t toggleCount = 0; // Counter for the number of IR emitter toggles
+volatile uint16_t dataToSend; // Data to send via IR (16-bit integer)
+bool isSending = false;   // Flag to track if we're sending data
 
 /*
   used to track which bit should be sent,
@@ -42,38 +40,36 @@ volatile bool getDigitToSend()
 {
   if (bitTurn >= 16)
   {
+    // If bitTurn is 16 or higher, send the inverse of the first 16 bits
     return !((dataToSend >> (15 - (bitTurn - 16))) % 2);
   }
-  return ((dataToSend >> (15 - bitTurn)) % 2);
+  return ((dataToSend >> (15 - bitTurn)) % 2); // Normal bit transmission
 }
 
-volatile void sendZero(void)
-{
-  PORTD &= ~(1 << PORTD6);
+// Functions to send logic levels for IR communication
+volatile void sendZero(void) {
+    PORTD &= ~(1 << PORTD6);  // Set PORTD6 low for '0'
 }
 
-volatile void sendOne(void)
-{
-  PORTD ^= (1 << PORTD6);
+volatile void sendOne(void) {
+    PORTD ^= (1 << PORTD6);  // Toggle PORTD6 for '1'
 }
 
+// ISR for external interrupt INT0 (IR receiver)
 volatile bool sendingIR = false;
-
 volatile bool recievingIR = false;
-
-ISR(INT0_vect)
-{
-  if (!sendingIR)
-  {
-    recievingIR = true;
-  }
+ISR(INT0_vect) {
+    if (!sendingIR) {
+        recievingIR = true;  // Start receiving if not sending
+    }
 }
 
+// Main function to send IR data
 void sendIR(void)
 {
-  if (bitTurn < DATALENGTH || bitTurn == 64)
-  {
-    if (bitTurn == 64) // if communication start
+  if (bitTurn < DATALENGTH || bitTurn == 64){
+    // Check if we are still sending bits or starting the communication
+    if (bitTurn == 64) // Initial communication setup
     {
       if (toggleCount < INITIALONEDURATION) // send 1 for 9ms
       {
@@ -83,14 +79,13 @@ void sendIR(void)
       {
         sendZero();
       }
-      else // then start sending data
+      else // Start sending actual data
       {
         bitTurn = 0;
         toggleCount = 0;
       }
     }
-    else
-    {
+    else { // Send actual data
       if (toggleCount >= TOGGLENUMBER) // reset togglecount and go to next bit if togglecount reaches TOGGLENUMBER
       {
         toggleCount = 0;
@@ -98,41 +93,40 @@ void sendIR(void)
       }
       if (getDigitToSend())
       {
-        sendOne();
+        sendOne(); // Send '1' for the current bit
       }
       else
       {
-        sendZero();
+        sendZero(); // Send '0' for the current bit
       }
     }
     toggleCount++;
   }
-  else
-  { // When done sending
+  else{
+    // When done sending data, stop sending
     sendingIR = false;
   }
 }
 
 /*
-  Returns status of IR reciever, inverted to correspond with sent bits
+  Function to get the receiver status (inverted to match sent data)
 */
 bool getRecieverStatus(void)
 {
-  return !((PIND >> PIND2) % 2);
+  return !((PIND >> PIND2) % 2);// Check IR receiver pin status
 }
 
-uint16_t readCount = 0; // number of times certain things have been read, used in different ways in recieveIR()
-
-enum recieveStatus
-{
-  initialOne,
-  initialZero,
-  dataBits,
-  inverseBits
+// Variables for handling received IR data
+uint16_t readCount = 0; // Counter for reads in the receiver
+enum recieveStatus { 
+    initialOne,   // Initial '1' detection (9ms)
+    initialZero,  // Initial '0' detection (4.5ms)
+    dataBits,     // Reading data bits
+    inverseBits   // Inverse bits (for checking inverse data)
 };
 
 recieveStatus currentRecieveStatus = initialOne; // used to decern the current status of recieveIR()
-uint16_t recievedBits = 0;
+uint16_t recievedBits = 0;  // Store received bits
 
 void resetRecieveIR(void) // resets all values needed in recieveIR to their starting values
 {
@@ -143,6 +137,7 @@ void resetRecieveIR(void) // resets all values needed in recieveIR to their star
   readCount = 0;
 }
 
+// Function to receive IR data and process it
 void recieveIR(void)
 {
   static bool previousValue;
@@ -151,7 +146,7 @@ void recieveIR(void)
 
   switch (currentRecieveStatus)
   {
-  case initialOne: // checks for 9ms 1
+  case initialOne: // Detect '1' (9ms)
     if (readCount < INITIALONEDURATION - ALLOWEDINITIALVARIANCE)
     {
       if (getRecieverStatus())
@@ -160,7 +155,7 @@ void recieveIR(void)
       }
       else
       {
-        resetRecieveIR();
+        resetRecieveIR();// Reset if we didn't receive '1'
       }
     }
     else
@@ -181,7 +176,7 @@ void recieveIR(void)
     {
       if (readCount > INITIALZERODURATION || getRecieverStatus())
       {
-        currentRecieveStatus = dataBits;
+        currentRecieveStatus = dataBits;// Move to data bits if detected '0'
         readCount = 0;
         bitCount = 0;
         currentBits = 0;
@@ -199,19 +194,19 @@ void recieveIR(void)
   case dataBits: // reads data bits
     if (readCount == TOGGLENUMBER / 2)
     {
-      currentBits = (currentBits << 1);
-      currentBits |= previousValue;
-      previousValue = getRecieverStatus();
+      currentBits = (currentBits << 1); // Shift left
+      currentBits |= previousValue; // Add current value
+      previousValue = getRecieverStatus();   // Store current status
     }
     else if (readCount == TOGGLENUMBER)
     {
       readCount = 0;
-      bitCount++;
+      bitCount++; // Move to the next bit after TOGGLENUMBER
     }
     readCount++;
     if (bitCount > 16)
     {
-      currentRecieveStatus = inverseBits;
+      currentRecieveStatus = inverseBits;  // If more than 16 bits received, check inverse
       readCount = 0;
       bitCount = 0;
     }
@@ -220,28 +215,33 @@ void recieveIR(void)
     recievedBits = currentBits;
     
     Serial.print(F("IR Data Received: 0b"));
-    Serial.println(recievedBits, BIN);
+    Serial.println(recievedBits, BIN);// Print received data in binary format
     Serial.print(F("suppose to be Data Received: 0x"));
-    Serial.println(0b1010101010101010, BIN); // Print received data in hexadecimal format
-
+    Serial.println(0b1010101010101010, BIN); // Expected pattern (for debugging)
     if (recievedBits == 0b0000000000000000)
-      tft.fillScreen(ILI9341_MAGENTA);
+      tft.fillScreen(ILI9341_MAGENTA); // Update TFT color if received data is 0
     if (recievedBits == 0b0000000000000001)
-      tft.fillScreen(ILI9341_RED);
+      tft.fillScreen(ILI9341_RED);  // Update TFT color if received data is 1
     
-    resetRecieveIR();
+    resetRecieveIR(); // Reset after processing
     break;
   }
 }
 
+// Function to update the display with player position
 void updateDisplay(uint16_t *posXp, uint16_t *posYp)
 {
   uint16_t oldPosX = *posXp;
   uint16_t oldPosY = *posYp;
+  
+  // Get state from Nunchuk
   Nunchuk.getState(NUNCHUK_ADDRESS);
+
+  // Update position based on Nunchuk joystick
   *posXp += (Nunchuk.state.joy_x_axis - 127) / 32;
   *posYp += ((-Nunchuk.state.joy_y_axis + 255) - 127) / 32;
-
+  
+  // Constrain player position to be within screen bounds
   if (*posXp < RADIUS_PLAYER)
   {
     *posXp = RADIUS_PLAYER;
@@ -260,15 +260,17 @@ void updateDisplay(uint16_t *posXp, uint16_t *posYp)
     *posYp = ILI9341_TFTWIDTH - RADIUS_PLAYER - 1;
   }
 
-  tft.fillCircle(oldPosX, oldPosY, RADIUS_PLAYER, ILI9341_WHITE);
-  tft.fillCircle(*posXp, *posYp, RADIUS_PLAYER, ILI9341_BLUE);
+  // Update the TFT display to show the player's movement
+  tft.fillCircle(oldPosX, oldPosY, RADIUS_PLAYER, ILI9341_WHITE);  // Erase old position
+  tft.fillCircle(*posXp, *posYp, RADIUS_PLAYER, ILI9341_BLUE);  // Draw new position
 }
 
+// ISR for Timer0 Compare Match (38kHz frequency for IR)
 ISR(TIMER0_COMPA_vect)
 {
   if (sendingIR)
   {
-    sendIR();
+    sendIR();  // Call sendIR if we are transmitting
     // tft.setCursor(10,10);
     // tft.println("sending");
   }
@@ -276,15 +278,16 @@ ISR(TIMER0_COMPA_vect)
   {
     // tft.setCursor(150, 10);
     // tft.print("recieving else");
-    sendZero();
+    sendZero();  // Keep sending '0' if we are idle
     if (recievingIR)
     {
-      recieveIR();
+      recieveIR();  // Call receiveIR if we are receiving data
     }
   }
-  ticksSinceLastUpdate++;
+  ticksSinceLastUpdate++;  // Increment tick count for screen refresh timing
 }
 
+// Timer setup for generating 38kHz frequency for IR
 void timerSetup(void)
 {
   TIMSK0 |= (1 << OCIE0A); // enable comp match a interrupt
@@ -293,7 +296,7 @@ void timerSetup(void)
   TCCR0B |= (1 << CS01);   // Prescaler of 8
 }
 
-
+// IR communication setup
 void IRSetup(void)
 {
   EIMSK |= (1 << INT0);  // enable external INT0 interrupts
@@ -301,79 +304,73 @@ void IRSetup(void)
   DDRD |= (1 << DDD6); // set IR pin output
 }
 
+// Setup function called once at startup
 void setup(void)
 {
   timerSetup();
   IRSetup();
-  sei();
-  tft.begin();
-  tft.setRotation(1);
+  sei();  // Enable global interrupts
+  tft.begin();  // Initialize TFT display
+  tft.setRotation(1); // Set TFT display rotation
 }
 
 /*
-  Sets the variables needed to send bits, returns false if not possible (e.g. when sending or recieving IR)
+  Function to send bits via IR
 */
-
 bool sendBits(uint16_t bitsToSend)
 {
   isSending = true;
   if (!sendingIR && !recievingIR)
   {
     // tft.println("true");
-    dataToSend = bitsToSend;
-    bitTurn = 64;
+    dataToSend = bitsToSend;  // Set data to send
+    bitTurn = 64;  // Start sending from the initial communication phase
     sendingIR = true;
-    return true;
+    return true;  // Return true if sending is possible
   }
 
     // tft.println("false");
-  return false;
+  return false;  // Return false if we are already sending or receiving
 }
 
 int main(void)
 {
-  setup();
+  setup();  // Call setup to initialize everything
+  Serial.begin(9600);  // Initialize serial communication
+  Wire.begin();  // Start I2C communication
+  Nunchuk.begin(NUNCHUK_ADDRESS);  // Initialize Nunchuk
 
-  Serial.begin(9600);
+  tft.setRotation(1);  // Set display rotation
+  tft.setTextColor(ILI9341_BLACK);  // Set text color to black
+  tft.setTextSize(2);  // Set text size
+  tft.setCursor(10, 10);  // Set text cursor position
 
-	// join I2C bus as master
-	Wire.begin();
-
-	Nunchuk.begin(NUNCHUK_ADDRESS);
-
-	tft.setRotation(1);  // Adjust as needed for display orientation
-  tft.setTextColor(ILI9341_BLACK);
-  tft.setTextSize(2);
-  tft.setCursor(10, 10);
-
-  uint16_t posX = ILI9341_TFTWIDTH / 2;
-  uint16_t posY = ILI9341_TFTHEIGHT / 2;
+  uint16_t posX = ILI9341_TFTWIDTH / 2;  // Initialize player position X
+  uint16_t posY = ILI9341_TFTHEIGHT / 2;  // Initialize player position Y
   uint16_t *posXp = &posX;
   uint16_t *posYp = &posY;
-  tft.fillScreen(ILI9341_WHITE);
 
-  tft.fillCircle(posX, posY, RADIUS_PLAYER, ILI9341_BLUE);
-  // sendBits(0b0100010110101010);
+  tft.fillScreen(ILI9341_WHITE);  // Set the initial background to white
+  tft.fillCircle(posX, posY, RADIUS_PLAYER, ILI9341_BLUE);  // Draw the player at the start
 
   while (1)
   {
-    if (ticksSinceLastUpdate > 380) // 100FPS
-    {
-        // tft.println("dsajdslk");
-      updateDisplay(posXp, posYp);
+    if (ticksSinceLastUpdate > 380) {  // Update display at 100 FPS
+      updateDisplay(posXp, posYp);  // Update player position
       ticksSinceLastUpdate = 0;
     }
 
+    // Check button presses on Nunchuk and send corresponding data
     if (Nunchuk.state.c_button && !isSending) {
-		  sendBits(0b0000000000000000);
-    } 
+      sendBits(0b0000000000000000);  // Send data when C button is pressed
+    }
 
     if (Nunchuk.state.z_button && !isSending) {
-      sendBits(0b0000000000000001);
+      sendBits(0b0000000000000001);// Send data when Z button is pressed
     }
 
     if (Nunchuk.state.c_button || Nunchuk.state.z_button) {
-      Serial.println(isSending);
+      Serial.println(isSending); // Debug: Print if sending is in progress
     }
   }
   return 0;
