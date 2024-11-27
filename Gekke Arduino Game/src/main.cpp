@@ -68,16 +68,25 @@ ISR(INT0_vect) {
 void sendIR(void)
 {
   if (bitTurn < DATALENGTH || bitTurn == 64){
-    // Check if we are still sending bits or starting the communication
+  // Print the current bit turn and the toggle count
+    Serial.print("Sending IR - bitTurn: ");
+    Serial.print(bitTurn);
+    Serial.print(" ToggleCount: ");
+    Serial.println(toggleCount);    
     if (bitTurn == 64) // Initial communication setup
     {
+      Serial.println("Starting communication setup (64 phase)");
+
       if (toggleCount < INITIALONEDURATION) // send 1 for 9ms
       {
         sendOne();
+        Serial.println("Sending '1' for 9ms");
       }
       else if (toggleCount < INITIALONEDURATION + INITIALZERODURATION) // then send 0 for 4.5ms
       {
         sendZero();
+        Serial.println("Sending '0' for 4.5ms");
+
       }
       else // Start sending actual data
       {
@@ -90,20 +99,25 @@ void sendIR(void)
       {
         toggleCount = 0;
         bitTurn++;
+        Serial.print("Moving to next bit - bitTurn: ");
+        Serial.println(bitTurn);
       }
       if (getDigitToSend())
       {
         sendOne(); // Send '1' for the current bit
+        Serial.println("Sending '1'");
       }
       else
       {
         sendZero(); // Send '0' for the current bit
+        Serial.println("Sending '0'");
       }
     }
     toggleCount++;
   }
   else{
     // When done sending data, stop sending
+    Serial.println("Finished sending IR data");
     sendingIR = false;
   }
 }
@@ -113,7 +127,10 @@ void sendIR(void)
 */
 bool getRecieverStatus(void)
 {
-  return !((PIND >> PIND2) % 2);// Check IR receiver pin status
+  bool status = !((PIND >> PIND2) % 2); // Get receiver status (inverted)
+  Serial.print("Receiver Status: ");
+  Serial.println(status); // Print receiver status (0 or 1)
+  return status;
 }
 
 // Variables for handling received IR data
@@ -147,6 +164,9 @@ void recieveIR(void)
   switch (currentRecieveStatus)
   {
   case initialOne: // Detect '1' (9ms)
+    Serial.print("State: initialOne - ");
+    Serial.print("readCount: ");
+    Serial.println(readCount);
     if (readCount < INITIALONEDURATION - ALLOWEDINITIALVARIANCE)
     {
       if (getRecieverStatus())
@@ -155,6 +175,7 @@ void recieveIR(void)
       }
       else
       {
+        Serial.println("Error: No '1' detected. Resetting.");
         resetRecieveIR();// Reset if we didn't receive '1'
       }
     }
@@ -162,16 +183,21 @@ void recieveIR(void)
     {
       if (readCount > INITIALONEDURATION)
       {
+        Serial.println("Error: Timing out while detecting '1'. Resetting.");
         resetRecieveIR();
       }
       else if (!getRecieverStatus())
       {
+        Serial.println("Detected initial '1' completed, moving to initialZero.");
         currentRecieveStatus = initialZero;
         readCount = 0;
       }
     }
     break;
   case initialZero: // checks for 4.5ms 0 
+    Serial.print("State: initialZero - ");
+    Serial.print("readCount: ");
+    Serial.println(readCount);
     if (!(readCount < INITIALZERODURATION - ALLOWEDINITIALVARIANCE))
     {
       if (readCount > INITIALZERODURATION || getRecieverStatus())
@@ -186,24 +212,44 @@ void recieveIR(void)
     {
       if (getRecieverStatus())
       {
+        Serial.println("Error: Unexpected signal during '0' detection. Resetting.");
+
         resetRecieveIR();
       }
     }
     readCount++;
     break;
   case dataBits: // reads data bits
+    Serial.print("State: dataBits - ");
+    Serial.print("readCount: ");
+    Serial.print(readCount);
+    Serial.print(" - bitCount: ");
+    Serial.println(bitCount);
     if (readCount == TOGGLENUMBER / 2)
     {
       currentBits = (currentBits << 1); // Shift left
       currentBits |= previousValue; // Add current value
       previousValue = getRecieverStatus();   // Store current status
+      Serial.print("Shifted currentBits: ");
+      Serial.println(currentBits, BIN);
+      
     }
     else if (readCount == TOGGLENUMBER)
     {
       readCount = 0;
       bitCount++; // Move to the next bit after TOGGLENUMBER
+      Serial.print("Moving to next bit - bitCount: ");
+      Serial.println(bitCount);
     }
     readCount++;
+     // Print the received data in binary format
+    Serial.print("IR Data Received (binary): 0b");
+    Serial.println(currentBits, BIN);
+
+
+    // Print the received data in hexadecimal format
+    Serial.print("IR Data Received (hex): 0x");
+    Serial.println(currentBits, HEX);
     if (bitCount > 16)
     {
       currentRecieveStatus = inverseBits;  // If more than 16 bits received, check inverse
@@ -322,14 +368,14 @@ bool sendBits(uint16_t bitsToSend)
   isSending = true;
   if (!sendingIR && !recievingIR)
   {
-    // tft.println("true");
+    tft.println("true");
     dataToSend = bitsToSend;  // Set data to send
     bitTurn = 64;  // Start sending from the initial communication phase
     sendingIR = true;
     return true;  // Return true if sending is possible
   }
 
-    // tft.println("false");
+  tft.println("false");
   return false;  // Return false if we are already sending or receiving
 }
 
