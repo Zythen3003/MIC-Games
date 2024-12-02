@@ -242,13 +242,21 @@ void updateDisplay(uint16_t *posXp, uint16_t *posYp)
   // Lees Nunchuk-joystick
   Nunchuk.getState(NUNCHUK_ADDRESS);
 
-  *posXp += (Nunchuk.state.joy_x_axis - 127) / 32;
-  *posYp += ((-Nunchuk.state.joy_y_axis + 255) - 127) / 32;
+   // Deadzone for joystick movement (values close to 127 should not move the player)
+  int deadZone = 10; // Tolerance range for joystick center
+
+  // Update the player's position based on the joystick input
+  if ((unsigned int)abs(Nunchuk.state.joy_x_axis - 127) > deadZone) {
+    *posXp += (Nunchuk.state.joy_x_axis - 127) / 32;
+  }
+  if ((unsigned int)abs(Nunchuk.state.joy_y_axis - 127) > deadZone) {
+    *posYp += ((-Nunchuk.state.joy_y_axis + 255) - 127) / 32;
+  }
 
   // Beperk cursorpositie binnen schermgrenzen
-  if (*posXp < RADIUS_PLAYER)
+  if (*posXp < RADIUS_PLAYER + 4 * 20) // Keep player inside the right area (after 4 columns for the scoreboard)
   {
-    *posXp = RADIUS_PLAYER;
+    *posXp = RADIUS_PLAYER + 4 * 20; // Set the left boundary to avoid crossing into the scoreboard area
   }
   else if (*posXp > 320 - RADIUS_PLAYER - 1)
   {
@@ -264,17 +272,17 @@ void updateDisplay(uint16_t *posXp, uint16_t *posYp)
     *posYp = 240 - RADIUS_PLAYER - 1;
   }
 
-  // Wis oude cursor door de rasterlijnen binnen de cirkel te hertekenen
+   // Wis oude cursor door de rasterlijnen binnen de cirkel te hertekenen
   for (int y = oldPosY - RADIUS_PLAYER; y <= oldPosY + RADIUS_PLAYER; y++)
   {
-    if (y % 20 == 0) // Controleer of y op een rasterlijn zit
+    if (y % 20 == 0 && y >= 0) // Controleer of y op een rasterlijn zit, but only draw for rows that are visible
     {
-      tft.drawLine(0, y, ILI9341_TFTWIDTH, y, ILI9341_BLUE);
+      tft.drawLine(4 * 20, y, ILI9341_TFTWIDTH, y, ILI9341_BLUE); // Start drawing gridlines after the first 4 columns
     }
   }
   for (int x = oldPosX - RADIUS_PLAYER; x <= oldPosX + RADIUS_PLAYER; x++)
   {
-    if (x % 20 == 0) // Controleer of x op een rasterlijn zit
+    if (x % 20 == 0 && x >= 4 * 20) // Controleer of x op een rasterlijn zit, but only draw for columns that are visible (after the scoreboard area)
     {
       tft.drawLine(x, 0, x, ILI9341_TFTHEIGHT, ILI9341_BLUE);
     }
@@ -287,6 +295,72 @@ void updateDisplay(uint16_t *posXp, uint16_t *posYp)
   oldPosX = *posXp;
   oldPosY = *posYp;
 }
+
+void displayScoreboard(uint16_t posX, uint16_t posY) {
+  // Static variables to remember the previous state
+  static int lastGridX = -1;  // -1 to indicate initial value
+  static int lastGridY = -1;  // -1 to indicate initial value
+
+  // Calculate the grid position
+  int gridX = (posX - (4 * 20)) / 20; // Subtract the space for the scoreboard
+  int gridY = posY / 20;
+
+  // Only update the parts that need to be changed
+  bool updateGrid = false;
+
+  // Define the background color of the scoreboard (white or whatever background color you are using)
+  uint16_t backgroundColor = ILI9341_WHITE; // Change to match your background color if needed
+
+  // Display the scoreboard title and static information (this only needs to be done once)
+  tft.setCursor(10, 45);  // Position for the "Scoreboard" title
+  tft.setTextSize(1);
+  tft.print("Scoreboard");
+
+  tft.setCursor(5, 65);  // Position for "Player 1:"
+  tft.print("Player 1: 0");
+
+  tft.setCursor(5, 85);  // Position for "Player 2:"
+  tft.print("Player 2: 0");
+
+  tft.setCursor(10, 115);  // Position for "Current"
+  tft.print("Current ");
+  tft.setCursor(10, 135); // Position for "Position"
+  tft.print("Position");
+
+  // Check if grid position has changed
+  if (gridX != lastGridX || gridY != lastGridY) {
+    // Clear previous grid position if it has changed
+    tft.fillRect(15, 155, 25, 40, backgroundColor); // Clear the "X:" and "Y:" values
+
+    // Update new X and Y grid positions
+    tft.setCursor(10, 155);
+    tft.print("X: ");
+    tft.print(gridX);
+
+    tft.setCursor(10, 175);
+    tft.print("Y: ");
+    tft.print(gridY);
+
+    // Update last known grid positions
+    lastGridX = gridX;
+    lastGridY = gridY;
+    updateGrid = true;
+  }
+  // Only redraw dynamic elements such as X/Y values if changed
+  if (updateGrid) {
+    // Redraw only when there is a change
+    tft.setCursor(10, 155);  // Position for "X:"
+    tft.print("X: ");
+    tft.print(gridX);
+
+    tft.setCursor(10, 175);  // Position for "Y:"
+    tft.print("Y: ");
+    tft.print(gridY);
+  }
+
+
+}
+
 
 
 ISR(TIMER0_COMPA_vect)
@@ -337,32 +411,33 @@ void setup(void)
 void SetupGrid(void)
 {
   tft.setRotation(1);
-  tft.fillScreen(ILI9341_WHITE); // Maak het scherm wit
+  tft.fillScreen(ILI9341_WHITE); // Make the screen white
   tft.setTextColor(ILI9341_BLACK);
   tft.setTextSize(2);
 
-  // Instellingen voor het raster
-  int cellSize = 20; // Grootte van een cel (in pixels)
-  int screenWidth = 320; // Breedte van het scherm (pas aan je scherm aan)
-  int screenHeight = 240; // Hoogte van het scherm (pas aan je scherm aan)
+  // Grid settings
+  int cellSize = 20; // Size of a cell (in pixels)
+  int screenWidth = 320; // Screen width (adjust for your screen)
+  int screenHeight = 240; // Screen height (adjust for your screen)
   int x, y;
 
-  // Horizontale lijnen
+  // Reserve the first 4 columns for the scoreboard
+  int scoreboardWidth = 4 * cellSize; // 4 columns for the scoreboard
+
+  // Draw horizontal lines (no change to the y positions)
   for (y = 0; y <= screenHeight; y += cellSize)
   {
-    tft.drawLine(0, y, screenWidth, y, ILI9341_BLUE);
+    tft.drawLine(scoreboardWidth, y, screenWidth, y, ILI9341_BLUE); // Start from scoreboardWidth to skip the left area
   }
 
-  // Verticale lijnen
-  for (x = 0; x <= screenWidth; x += cellSize)
+  // Draw vertical lines (skip the first 4 columns for the scoreboard)
+  for (x = scoreboardWidth; x <= screenWidth; x += cellSize)
   {
     tft.drawLine(x, 0, x, screenHeight, ILI9341_BLUE);
   }
 
-  // Optioneel: Cursor plaatsen voor tekst
-  tft.setCursor(10, 10);
-  tft.print("Grid klaar!");
 }
+
 
 /*
   Sets the variables needed to send bits, returns false if not possible (e.g. when sending or recieving IR)
@@ -407,24 +482,33 @@ int main(void)
 
   while (1)
   {
+    // Display the player's grid position and scoreboard
+    displayScoreboard(posX, posY);
+
     if (ticksSinceLastUpdate > 380) // 100FPS
     {
-        // tft.println("dsajdslk");
-      updateDisplay(posXp, posYp);
-      ticksSinceLastUpdate = 0;
+        updateDisplay(posXp, posYp);
+        ticksSinceLastUpdate = 0;
     }
 
+    // Check for Nunchuk button presses
+    if (Nunchuk.state.c_button || Nunchuk.state.z_button) {
+        // Display the player's grid position when any button is pressed
+        displayScoreboard(posX, posY);
+    }
+
+    // Button presses that trigger sending bits (optional)
     if (Nunchuk.state.c_button && !isSending) {
-		  sendBits(0b0000000000000000);
+        sendBits(0b0000000000000000);
     } 
 
     if (Nunchuk.state.z_button && !isSending) {
-      sendBits(0b0000000000000001);
+        sendBits(0b0000000000000001);
     }
 
-    if (Nunchuk.state.c_button || Nunchuk.state.z_button) {
-      Serial.println(isSending);
-    }
-  }
+    // if (Nunchuk.state.c_button || Nunchuk.state.z_button) {
+    //     Serial.println(isSending);
+    // }
+}
   return 0;
 }
