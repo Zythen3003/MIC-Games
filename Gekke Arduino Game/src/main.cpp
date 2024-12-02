@@ -34,6 +34,7 @@ bool isSending = false;
   maximum value 32 unless sending new bits, in which case it is set to 64
 */
 volatile uint8_t bitTurn;
+void SetupGrid();
 
 /*
   returns either 1 or 0 depending on bitTurn, if bitTurn is 16 or above it will send the inverse of the first 16 bits
@@ -242,7 +243,7 @@ void updateDisplay(uint16_t *posXp, uint16_t *posYp)
   // Lees Nunchuk-joystick
   Nunchuk.getState(NUNCHUK_ADDRESS);
 
-   // Deadzone for joystick movement (values close to 127 should not move the player)
+  // Deadzone for joystick movement (values close to 127 should not move the player)
   int deadZone = 10; // Tolerance range for joystick center
 
   // Update the player's position based on the joystick input
@@ -272,29 +273,17 @@ void updateDisplay(uint16_t *posXp, uint16_t *posYp)
     *posYp = 240 - RADIUS_PLAYER - 1;
   }
 
-   // Wis oude cursor door de rasterlijnen binnen de cirkel te hertekenen
-  for (int y = oldPosY - RADIUS_PLAYER; y <= oldPosY + RADIUS_PLAYER; y++)
-  {
-    if (y % 20 == 0 && y >= 0) // Controleer of y op een rasterlijn zit, but only draw for rows that are visible
-    {
-      tft.drawLine(4 * 20, y, ILI9341_TFTWIDTH, y, ILI9341_BLUE); // Start drawing gridlines after the first 4 columns
-    }
-  }
-  for (int x = oldPosX - RADIUS_PLAYER; x <= oldPosX + RADIUS_PLAYER; x++)
-  {
-    if (x % 20 == 0 && x >= 4 * 20) // Controleer of x op een rasterlijn zit, but only draw for columns that are visible (after the scoreboard area)
-    {
-      tft.drawLine(x, 0, x, ILI9341_TFTHEIGHT, ILI9341_BLUE);
-    }
-  }
+  // Erase the old player position with the background color (white)
+  tft.fillCircle(oldPosX, oldPosY, RADIUS_PLAYER, ILI9341_WHITE); // Erase the old blue circle
 
-  // Teken nieuwe cursor
+  // Teken nieuwe cursor (draw new player in blue)
   tft.fillCircle(*posXp, *posYp, RADIUS_PLAYER, ILI9341_BLUE);
 
-  // Update oude positie
+  // Update oude positie (update old position)
   oldPosX = *posXp;
   oldPosY = *posYp;
 }
+
 
 void displayScoreboard(uint16_t posX, uint16_t posY) {
   // Static variables to remember the previous state
@@ -304,9 +293,6 @@ void displayScoreboard(uint16_t posX, uint16_t posY) {
   // Calculate the grid position
   int gridX = (posX - (4 * 20)) / 20; // Subtract the space for the scoreboard
   int gridY = posY / 20;
-
-  // Only update the parts that need to be changed
-  bool updateGrid = false;
 
   // Define the background color of the scoreboard (white or whatever background color you are using)
   uint16_t backgroundColor = ILI9341_WHITE; // Change to match your background color if needed
@@ -335,30 +321,16 @@ void displayScoreboard(uint16_t posX, uint16_t posY) {
     // Update new X and Y grid positions
     tft.setCursor(10, 155);
     tft.print("X: ");
-    tft.print(gridX);
+    tft.print(gridX + 1); // Add 1 to match the grid numbering (1-based)
 
     tft.setCursor(10, 175);
     tft.print("Y: ");
-    tft.print(gridY);
+    tft.print(gridY + 1); // Add 1 to match the grid numbering (1-based)
 
     // Update last known grid positions
     lastGridX = gridX;
     lastGridY = gridY;
-    updateGrid = true;
   }
-  // Only redraw dynamic elements such as X/Y values if changed
-  if (updateGrid) {
-    // Redraw only when there is a change
-    tft.setCursor(10, 155);  // Position for "X:"
-    tft.print("X: ");
-    tft.print(gridX);
-
-    tft.setCursor(10, 175);  // Position for "Y:"
-    tft.print("Y: ");
-    tft.print(gridY);
-  }
-
-
 }
 
 
@@ -400,14 +372,6 @@ void IRSetup(void)
   DDRD |= (1 << DDD6); // set IR pin output
 }
 
-void setup(void)
-{
-  timerSetup();
-  IRSetup();
-  sei();
-  tft.begin();
-}
-
 void SetupGrid(void)
 {
   tft.setRotation(1);
@@ -427,15 +391,24 @@ void SetupGrid(void)
   // Draw horizontal lines (no change to the y positions)
   for (y = 0; y <= screenHeight; y += cellSize)
   {
-    tft.drawLine(scoreboardWidth, y, screenWidth, y, ILI9341_BLUE); // Start from scoreboardWidth to skip the left area
+    tft.drawLine(scoreboardWidth, y, screenWidth, y, ILI9341_BLACK); // Start from scoreboardWidth to skip the left area
   }
 
   // Draw vertical lines (skip the first 4 columns for the scoreboard)
   for (x = scoreboardWidth; x <= screenWidth; x += cellSize)
   {
-    tft.drawLine(x, 0, x, screenHeight, ILI9341_BLUE);
+    tft.drawLine(x, 0, x, screenHeight, ILI9341_BLACK);
   }
+}
 
+void setup(void)
+{
+  timerSetup();
+  IRSetup();
+  sei();
+  tft.begin();
+    // Draw the grid only once at the start
+  SetupGrid();
 }
 
 
@@ -462,7 +435,6 @@ bool sendBits(uint16_t bitsToSend)
 int main(void)
 {
   setup();
-  SetupGrid();
 
   Serial.begin(9600);
 
