@@ -5,6 +5,7 @@
 #include "Nunchuk.h"
 #include <HardwareSerial.h>
 
+
 #define TOGGLENUMBER 38 // number of times the IR emitter toggles to send one bit
 #define TFT_DC 9
 #define TFT_CS 10
@@ -17,6 +18,10 @@
 #define INITIALZERODURATION 342   // 4.5ms
 #define DATALENGTH 32             // total amount of bits sent, including logical inverse
 #define ALLOWEDINITIALVARIANCE 32 // allowed variance for initial one and zero
+#define GRID_COLUMNS 12 // Aantal kolommen in de grid
+#define GRID_ROWS 12    // Aantal rijen in de grid
+#define MINE_COUNT 10   // Aantal mijnen
+#define BUFFER_SIZE (2 * RADIUS_PLAYER * 2 * RADIUS_PLAYER)
 
 Adafruit_ILI9341 tft = Adafruit_ILI9341(TFT_CS, TFT_DC);
 
@@ -28,6 +33,8 @@ volatile uint16_t dataToSend; // 16 bit integer sent via IR
 
 bool isSending = false;
 
+int grid[GRID_ROWS][GRID_COLUMNS]; // Grid om mijnen bij te houden
+bool revealed[GRID_ROWS][GRID_COLUMNS]; // Houdt bij of een vakje is gegraven
 
 /*
   used to track which bit should be sent,
@@ -123,6 +130,9 @@ bool getRecieverStatus(void)
 }
 
 uint16_t readCount = 0; // number of times certain things have been read, used in different ways in recieveIR()
+
+uint16_t cursorBuffer[BUFFER_SIZE]; // Buffer voor achtergrond onder de cursor
+
 
 enum recieveStatus
 {
@@ -235,56 +245,220 @@ void recieveIR(void)
   }
 }
 
-void updateDisplay(uint16_t *posXp, uint16_t *posYp)
-{
-  static uint16_t oldPosX = *posXp;
-  static uint16_t oldPosY = *posYp;
+int player1Score = 0; // Houd de score van Player 1 bij
 
-  // Lees Nunchuk-joystick
-  Nunchuk.getState(NUNCHUK_ADDRESS);
+int countAdjacentMines(int gridX, int gridY) {
+    int count = 0;
 
-  // Deadzone for joystick movement (values close to 127 should not move the player)
-  int deadZone = 10; // Tolerance range for joystick center
+    // Loop door alle omliggende cellen
+    for (int offsetX = -1; offsetX <= 1; offsetX++) {
+        for (int offsetY = -1; offsetY <= 1; offsetY++) {
+            // Bereken de coördinaten van de buurcel
+            int neighborX = gridX + offsetX;
+            int neighborY = gridY + offsetY;
 
-  // Update the player's position based on the joystick input
-  if ((unsigned int)abs(Nunchuk.state.joy_x_axis - 127) > deadZone) {
-    *posXp += (Nunchuk.state.joy_x_axis - 127) / 32;
-  }
-  if ((unsigned int)abs(Nunchuk.state.joy_y_axis - 127) > deadZone) {
-    *posYp += ((-Nunchuk.state.joy_y_axis + 255) - 127) / 32;
-  }
+            // Controleer of de buurcel binnen de grid valt
+            if (neighborX >= 0 && neighborX < GRID_COLUMNS &&
+                neighborY >= 0 && neighborY < GRID_ROWS) {
+                // Tel alleen als er een mijn ligt
+                if (grid[neighborY][neighborX] == 1) {
+                    count++;
+                }
+            }
+        }
+    }
 
-  // Beperk cursorpositie binnen schermgrenzen
-  if (*posXp < RADIUS_PLAYER + 4 * 20) // Keep player inside the right area (after 4 columns for the scoreboard)
-  {
-    *posXp = RADIUS_PLAYER + 4 * 20; // Set the left boundary to avoid crossing into the scoreboard area
-  }
-  else if (*posXp > 320 - RADIUS_PLAYER - 1)
-  {
-    *posXp = 320 - RADIUS_PLAYER - 1;
-  }
+    return count; // Retourneer het aantal omliggende mijnen
+}
 
-  if (*posYp < RADIUS_PLAYER)
-  {
-    *posYp = RADIUS_PLAYER;
-  }
-  else if (*posYp > 240 - RADIUS_PLAYER - 1)
-  {
-    *posYp = 240 - RADIUS_PLAYER - 1;
-  }
+void restoreOldCursorPosition(uint16_t oldX, uint16_t oldY) {
+    // Bereken de gridpositie
+    int gridX = (oldX - (4 * 20)) / 20;
+    int gridY = oldY / 20;
 
-  // Erase the old player position with the background color (white)
-  tft.fillCircle(oldPosX, oldPosY, RADIUS_PLAYER, ILI9341_WHITE); // Erase the old blue circle
+    // Controleer of de positie binnen het speelveld valt
+    if (gridX >= 0 && gridX < GRID_COLUMNS && gridY >= 0 && gridY < GRID_ROWS) {
+        int cellX = 4 * 20 + gridX * 20;
+        int cellY = gridY * 20;
 
-  // Teken nieuwe cursor (draw new player in blue)
-  tft.fillCircle(*posXp, *posYp, RADIUS_PLAYER, ILI9341_BLUE);
+        // Herstel de achtergrondkleur van de cel
+        tft.fillRect(cellX + 1, cellY + 1, 18, 18, ILI9341_WHITE);
 
-  // Update oude positie (update old position)
-  oldPosX = *posXp;
-  oldPosY = *posYp;
+        // Herstel gridlijnen
+        tft.drawLine(cellX, cellY, cellX + 20, cellY, ILI9341_BLACK); // Bovenste lijn
+        tft.drawLine(cellX, cellY, cellX, cellY + 20, ILI9341_BLACK); // Linker lijn
+
+        // Als het vakje is gegraven, herstel het nummer of de mijn
+        if (revealed[gridY][gridX]) {
+            if (grid[gridY][gridX] == 1) {
+                // Teken mijn
+                tft.fillRect(cellX + 5, cellY + 5, 10, 10, ILI9341_BLACK);
+            } else {
+                // Teken het nummer van omliggende mijnen
+                int mineCount = countAdjacentMines(gridX, gridY);
+                tft.setCursor(cellX + 6, cellY + 3);
+                tft.setTextSize(1);
+                tft.setTextColor(ILI9341_BLACK);
+                tft.print(mineCount);
+            }
+        }
+    }
 }
 
 
+void updateDisplay(uint16_t *posXp, uint16_t *posYp)
+{
+    static int oldGridXStart = -1, oldGridXEnd = -1;
+    static int oldGridYStart = -1, oldGridYEnd = -1;
+
+    // Bereken de nieuwe bounding box van de cursor
+    int newGridXStart = (*posXp - RADIUS_PLAYER - (4 * 20)) / 20;
+    int newGridXEnd = (*posXp + RADIUS_PLAYER - (4 * 20)) / 20;
+    int newGridYStart = (*posYp - RADIUS_PLAYER) / 20;
+    int newGridYEnd = (*posYp + RADIUS_PLAYER) / 20;
+
+    // Controleer of de cursor in een nieuw gridvak is
+    if (newGridXStart != oldGridXStart || newGridXEnd != oldGridXEnd ||
+        newGridYStart != oldGridYStart || newGridYEnd != oldGridYEnd) {
+        
+        // Herstel de oude bounding box
+        for (int gridX = oldGridXStart; gridX <= oldGridXEnd; gridX++) {
+            for (int gridY = oldGridYStart; gridY <= oldGridYEnd; gridY++) {
+                if (gridX >= 0 && gridX < GRID_COLUMNS && gridY >= 0 && gridY < GRID_ROWS) {
+                    int cellX = 4 * 20 + gridX * 20;
+                    int cellY = gridY * 20;
+
+                    // Herstel achtergrond
+                    tft.fillRect(cellX + 1, cellY + 1, 18, 18, ILI9341_WHITE);
+
+                    // Herstel gridlijnen
+                    tft.drawLine(cellX, cellY, cellX + 20, cellY, ILI9341_BLACK); // Horizontale lijn
+                    tft.drawLine(cellX, cellY, cellX, cellY + 20, ILI9341_BLACK); // Verticale lijn
+
+                    // Herstel cijfers of mijnen
+                    if (revealed[gridY][gridX]) {
+                        if (grid[gridY][gridX] == 1) {
+                            tft.fillRect(cellX + 5, cellY + 5, 10, 10, ILI9341_BLACK); // Mijn
+                        } else {
+                            int mineCount = countAdjacentMines(gridX, gridY);
+                            tft.setCursor(cellX + 6, cellY + 3);
+                            tft.setTextSize(1);
+                            tft.setTextColor(ILI9341_BLACK);
+                            tft.print(mineCount);
+                        }
+                    }
+                }
+            }
+        }
+
+        // Update de oude bounding box
+        oldGridXStart = newGridXStart;
+        oldGridXEnd = newGridXEnd;
+        oldGridYStart = newGridYStart;
+        oldGridYEnd = newGridYEnd;
+    }
+
+    // Lees Nunchuk-joystick
+    Nunchuk.getState(NUNCHUK_ADDRESS);
+
+    // Deadzone voor joystickbeweging
+    int deadZone = 10;
+    if ((unsigned int)abs(Nunchuk.state.joy_x_axis - 127) > deadZone) {
+        *posXp += (Nunchuk.state.joy_x_axis - 127) / 32;
+    }
+    if ((unsigned int)abs(Nunchuk.state.joy_y_axis - 127) > deadZone) {
+        *posYp += ((-Nunchuk.state.joy_y_axis + 255) - 127) / 32;
+    }
+
+    // Houd cursor binnen schermgrenzen
+    *posXp = constrain(*posXp, RADIUS_PLAYER + 4 * 20, 320 - RADIUS_PLAYER - 1);
+    *posYp = constrain(*posYp, RADIUS_PLAYER, 240 - RADIUS_PLAYER - 1);
+
+    // Teken de nieuwe cursorpositie
+    tft.fillCircle(*posXp, *posYp, RADIUS_PLAYER, ILI9341_BLUE);
+}
+
+// Functie om mijnen te genereren
+void generateMines() {
+    for (int row = 0; row < GRID_ROWS; row++) {
+        for (int col = 0; col < GRID_COLUMNS; col++) {
+            grid[row][col] = 0;      // Geen mijn
+            revealed[row][col] = false; // Vakje niet gegraven
+        }
+    }
+
+    int minesPlaced = 0;
+    while (minesPlaced < MINE_COUNT) {
+        int randomRow = random(0, GRID_ROWS);
+        int randomCol = random(0, GRID_COLUMNS);
+
+        if (grid[randomRow][randomCol] == 0) {
+            grid[randomRow][randomCol] = 1; // Plaats mijn
+            minesPlaced++;
+        }
+    }
+}
+
+// Functie om mijnen weer te geven
+void drawMines() {
+    for (int row = 0; row < GRID_ROWS; row++) {
+        for (int col = 0; col < GRID_COLUMNS; col++) {
+            if (grid[row][col] == 1) {
+                int x = 4 * 20 + col * 20; // Bereken x-coördinaat
+                int y = row * 20;          // Bereken y-coördinaat
+                tft.fillRect(x + 5, y + 5, 10, 10, ILI9341_BLACK); // Mijn
+            }
+        }
+    }
+}
+
+void digAction(uint16_t posX, uint16_t posY) {
+    // Bereken de huidige gridpositie van de cursor
+    int gridX = (posX - (4 * 20)) / 20; // Bereken kolom
+    int gridY = posY / 20;              // Bereken rij
+
+    // Controleer of de gridpositie geldig is
+    if (gridX >= 0 && gridX < GRID_COLUMNS && gridY >= 0 && gridY < GRID_ROWS) {
+        if (revealed[gridY][gridX]) {
+            // Dit vakje is al gegraven, doe niets
+            return;
+        }
+
+        // Markeer het vakje als gegraven
+        revealed[gridY][gridX] = true;
+
+        if (grid[gridY][gridX] == 1) {
+            // Er is een mijn - verhoog de score van Player 1
+            player1Score++;
+
+            // Wis de oude score door het cijfer te overschrijven met de achtergrondkleur
+            tft.setCursor(85, 65); // Plaats direct achter "Player 1:"
+            tft.setTextSize(1);
+            tft.setTextColor(ILI9341_WHITE); // Witte achtergrondkleur
+            tft.print(player1Score - 1); // Wis het oude cijfer
+
+            // Teken de nieuwe score
+            tft.setCursor(85, 65); // Plaats direct achter "Player 1:"
+            tft.setTextSize(1);
+            tft.setTextColor(ILI9341_BLACK); // Zwarte tekstkleur
+            tft.print(player1Score); // Print de nieuwe score
+        } else {
+            // Geen mijn - graaf de cel vrij
+            int digX = 4 * 20 + gridX * 20; // Pixelpositie voor de cel
+            int digY = gridY * 20;
+            tft.fillRect(digX + 1, digY + 1, 18, 18, ILI9341_WHITE); // Maak de cel wit
+
+            // Tel omliggende mijnen
+            int mineCount = countAdjacentMines(gridX, gridY);
+
+            // Toon het aantal omliggende mijnen, inclusief 0
+            tft.setCursor(digX + 6, digY + 3); // Centreer in de cel
+            tft.setTextSize(1);
+            tft.setTextColor(ILI9341_BLACK);
+            tft.print(mineCount); // Print ook "0" als er geen omliggende mijnen zijn
+        }
+    }
+}
 void displayScoreboard(uint16_t posX, uint16_t posY) {
   // Static variables to remember the previous state
   static int lastGridX = -1;  // -1 to indicate initial value
@@ -409,6 +583,8 @@ void setup(void)
   tft.begin();
     // Draw the grid only once at the start
   SetupGrid();
+  generateMines();
+   
 }
 
 
@@ -477,6 +653,10 @@ int main(void)
     if (Nunchuk.state.z_button && !isSending) {
         sendBits(0b0000000000000001);
     }
+    
+    if (Nunchuk.state.z_button) {
+            digAction(*posXp, *posYp);
+   }
 
     // if (Nunchuk.state.c_button || Nunchuk.state.z_button) {
     //     Serial.println(isSending);
