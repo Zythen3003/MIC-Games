@@ -1,198 +1,81 @@
-/*
- * read data from nunchuk and write to Serial
- */
 #include <avr/io.h>
-#include <util/delay.h>
 #include <avr/interrupt.h>
-#include <Wire.h>
-#include <HardwareSerial.h>
-#include <Nunchuk.h>
-#include <InfraRood.h>
 
-#define NUNCHUK_ADDRESS 0x52
-#define WAIT		1000
-#define BAUDRATE	9600
-#define CHUNKSIZE	32
-#define BUFFERLEN	256
+#define IR_PIN 6       // D6 is ingesteld als IR-output
+#define CPU_FREQUENCY 2000000  // 16 MHz, bijvoorbeeld voor een microcontroller zoals een Arduino
 
-// LED pin
-#define LED_PIN     PD6 // Pas deze pin aan naar de pin die je gebruikt voor de LED
+void delayMicroseconds(unsigned int microseconds);
+void delayMilliseconds(unsigned int milliseconds);
 
-// what to show
-#define STATE
+// Functie voor een vertraging in microseconden
+void delayMicroseconds(unsigned int microseconds) {
+    unsigned int cycles = (CPU_FREQUENCY / 1000000) * microseconds / 3;  // Verdeel door 3 voor gemiddelde instructietijd
+    for (volatile unsigned int i = 0; i < cycles; i++) {
+        // Busy-wait: niets doen, gewoon wachten
+    }
+}
 
-// prototypes
-bool show_memory(void);
-bool show_state(void);
-bool show_calibration(void);
+// Functie voor een vertraging in milliseconden
+void delayMilliseconds(unsigned int milliseconds) {
+    for (unsigned int i = 0; i < milliseconds; i++) {
+        delayMicroseconds(1000);  // 1000 microseconden per milliseconde
+    }
+}
 
-InfraRood ir; // Infrarood object
+void timerSetup(void)
+{
+  TCCR0A = 0;                // Reset Timer0 Control Register A
+  TCCR0B = 0;                // Reset Timer0 Control Register B
+  TIMSK0 |= (1 << OCIE0A); // vergelijking aan voor interups
+  TCCR0A |= (1 << WGM01);  // Zet timer 0 in ctc mode
+  OCR0A = 52;              // Set compare match value for 38kHz
+  TCCR0B |= (1 << CS01);   // Zorgt dat de prescaler in de timer op 8 staat zodat de frequentie van de timer 38khz wordt
+}
+//f output = f cpu / 2⋅prescaler⋅(OCR0A+1)
+// 16.000.000 / 2 x 8 x (24+1) = 38.000 dus 38 khz
 
+void IRSetup(void)
+{
+  EIMSK |= (1 << INT0);  // schakelt de interrupt op pin 2 in.
+  EICRA |= (1 << ISC01); // stelt de interupt in bij verandering van signaal hoog naar laag.
+  DDRD |= (1 << DDD6); // Output pin voor led
+}
 
-/*
- * main
- */
+void SendOne(){
+  TCCR0A |= (1 << COM0A0);  // Verbind Timer0 met de pin
+  delayMicroseconds(1120);
+
+  TCCR0A &= ~(1 << COM0A0); // Ontkoppel Timer0 van de pin
+  delayMicroseconds(560);
+  }
+
+void SendZero(){
+  TCCR0A |= (1 << COM0A0);  // Verbind Timer0 met de pin
+  delayMicroseconds(560);
+
+  TCCR0A &= ~(1 << COM0A0); // Ontkoppel Timer0 van de pin
+  delayMicroseconds(560);}
+
+void setup(void)
+{
+   timerSetup();
+   IRSetup();
+}
+
+void loop()
+{
+  SendOne();
+  SendOne();
+  SendZero();
+  SendOne();
+  SendZero();
+  SendZero();
+  delayMilliseconds(1000);
+}
+
 int main(void) {
-
-	// enable global interrupts
-	sei();
-
-	// use Serial for printing nunchuk data
-	Serial.begin(BAUDRATE);
-
-	// join I2C bus as master
-	Wire.begin();
- 	// Initialisatie van de infrarood sensor
-    ir.begin();
-
-    // Stel de LED-pin in als uitgang
-    DDRD |= (1 << LED_PIN); // Zet LED-pin als output
-
-	// handshake with nunchuk
-	Serial.print("-------- Connecting to nunchuk at address 0x");
-	Serial.println(NUNCHUK_ADDRESS, HEX);
-	if (!Nunchuk.begin(NUNCHUK_ADDRESS))
-	{
-		Serial.println("******** No nunchuk found");
-		Serial.flush();
-		return(1);
-	}
-
-	/*
-	 * get identificaton (nunchuk should be 0xA4200000)
-	 */
-	Serial.print("-------- Nunchuk with Id: ");
-	Serial.println(Nunchuk.id);
-
-
-	// endless loop
-	while(1) {
-#ifdef STATE
-		if (!show_state()) {
-			Serial.println("******** No nunchuk found");
-			Serial.flush();
-			return(1);
-		}
-#endif
-#ifdef MEM
-		if (!show_memory()) {
-			Serial.println("******** No nunchuk found");
-			Serial.flush();
-			return(1);
-		}
-#endif
-#ifdef CAL
-		if (!show_calibration()) {
-			Serial.println("******** No nunchuk found");
-			Serial.flush();
-			return(1);
-		}
-#endif
-
-		// Als de Z-knop ingedrukt is, stuur een infrarood signaal
-        if (Nunchuk.state.z_button) {
-            ir.send(0x55); // Stuur een voorbeeld datacode (0x55)
-            PORTD |= (1 << LED_PIN); // Zet de LED aan
-        } else {
-            PORTD &= ~(1 << LED_PIN); // Zet de LED uit
-        }
-
-        // Korte wachttijd om de Nunchuk regelmatig bij te werken
-        _delay_ms(WAIT);
-	}
-
-	return(0);
+    setup();
+    while (1) {
+        loop();
+    }
 }
-
-bool show_memory(void)
-{
-	// print whole memory
-	Serial.println("------ Whole memory------------------------");
-	for (uint16_t n = 0; n < BUFFERLEN; n += CHUNKSIZE) {
-		// read
-		if (Nunchuk.read(NUNCHUK_ADDRESS, (uint8_t)n,
-				(uint8_t)CHUNKSIZE) != CHUNKSIZE)
-			return (false);
-
-		// print
-		Serial.print("0x");
-		if (n == 0) Serial.print("0");
-		Serial.print(n, HEX);
-		Serial.print(": ");
-		for (uint8_t i = 0; i < CHUNKSIZE; i++) {
-			if (Nunchuk.buffer[i] == 0)
-				Serial.print('0');
-			Serial.print(Nunchuk.buffer[i], HEX);
-		}
-		Serial.println("");
-	}
-
-	return(true);
-}
-
-bool show_state(void)
-{
-	if (!Nunchuk.getState(NUNCHUK_ADDRESS))
-		return (false);
-	Serial.println("------State data--------------------------");
-	Serial.print("Joy X: ");
-	Serial.print(Nunchuk.state.joy_x_axis, HEX);
-	Serial.print("\t\tAccel X: ");
-	Serial.print(Nunchuk.state.accel_x_axis, HEX);
-	Serial.print("\t\tButton C: ");
-	Serial.println(Nunchuk.state.c_button, HEX);
-
-	Serial.print("Joy Y: ");
-	Serial.print(Nunchuk.state.joy_y_axis, HEX);
-	Serial.print("\t\tAccel Y: ");
-	Serial.print(Nunchuk.state.accel_y_axis, HEX);
-	Serial.print("\t\tButton Z: ");
-	Serial.println(Nunchuk.state.z_button, HEX);
-
-	Serial.print("\t\t\tAccel Z: ");
-	Serial.println(Nunchuk.state.accel_z_axis, HEX);
-
-  Serial.print("Button C: ");
-  Serial.println(Nunchuk.state.c_button ? "Pressed" : "Released");
-
-  Serial.print("Button Z: ");
-  Serial.println(Nunchuk.state.z_button ? "Pressed" : "Released");
-
-	return(true);
-}
-
-bool show_calibration(void)
-{
-	if (!Nunchuk.getCalibration(NUNCHUK_ADDRESS))
-		return(false);
-	Serial.println("------Calibration data (unused)-----------");
-	Serial.print("X-0G: 0x");
-	Serial.print(Nunchuk.cal.x0, HEX);
-	Serial.print("\tY-0G: 0x");
-	Serial.print(Nunchuk.cal.y0, HEX);
-	Serial.print("\tZ-0G: 0x");
-	Serial.println(Nunchuk.cal.z0, HEX);
-	Serial.print("X-1G: 0x");
-	Serial.print(Nunchuk.cal.x1, HEX);
-	Serial.print("\tY-1G: 0x");
-	Serial.print(Nunchuk.cal.y1, HEX);
-	Serial.print("\tZ-1G: 0x");
-	Serial.println(Nunchuk.cal.z1, HEX);
-	Serial.print("xmin: 0x");
-	Serial.print(Nunchuk.cal.xmin, HEX);
-	Serial.print("\txmax: 0x");
-	Serial.print(Nunchuk.cal.xmax, HEX);
-	Serial.print("\txcenter: 0x");
-	Serial.println(Nunchuk.cal.xcenter, HEX);
-	Serial.print("ymin: 0x");
-	Serial.print(Nunchuk.cal.ymin, HEX);
-	Serial.print("\tymax: 0x");
-	Serial.print(Nunchuk.cal.ymax, HEX);
-	Serial.print("\tycenter: 0x");
-	Serial.println(Nunchuk.cal.ycenter, HEX);
-	Serial.print("chksum: 0x");
-	Serial.println(Nunchuk.cal.chksum, HEX);
-
-	return(true);
-}
-
