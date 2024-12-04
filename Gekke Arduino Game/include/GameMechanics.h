@@ -9,9 +9,9 @@
 #define TFT_CS 10
 #define NUNCHUK_ADDRESS 0x52
 #define RADIUS_PLAYER 5
-#define GRID_COLUMNS 12 // Aantal kolommen in de grid
-#define GRID_ROWS 12    // Aantal rijen in de grid
-#define TREASURE_COUNT 10   // Aantal mijnen
+#define GRID_COLUMNS 12 // Columns in the grid
+#define GRID_ROWS 12    // Rows in the grid
+#define TREASURE_COUNT 0   // Number of Treasures
 #define BUFFER_SIZE (2 * RADIUS_PLAYER * 2 * RADIUS_PLAYER)
 
 // Global variables
