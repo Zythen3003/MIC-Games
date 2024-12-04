@@ -11,7 +11,7 @@
 #define RADIUS_PLAYER 5
 #define GRID_COLUMNS 12 // Aantal kolommen in de grid
 #define GRID_ROWS 12    // Aantal rijen in de grid
-#define MINE_COUNT 10   // Aantal mijnen
+#define TREASURE_COUNT 10   // Aantal mijnen
 #define BUFFER_SIZE (2 * RADIUS_PLAYER * 2 * RADIUS_PLAYER)
 
 // Global variables
@@ -25,10 +25,10 @@ extern uint8_t player2Score;
 // Function Declarations
 void SetupGrid();
 void displayScoreboard(uint16_t posX, uint16_t posY);
-int countAdjacentMines(int gridX, int gridY);
+int countAdjacentTreasures(int gridX, int gridY);
 void updateDisplay(uint16_t *posXp, uint16_t *posYp);
-void generateMines();
-void drawMines();
+void generateTreasures();
+void drawTreasures();
 void digAction(uint16_t posX, uint16_t posY);
 
 #endif

@@ -45,7 +45,7 @@ void setup(void)
   tft.begin(); // Initialize the display here (if not already done in SetupGrid)
     // Draw the grid only once at the start
   SetupGrid();
-  generateMines();
+  generateTreasures();
    
 }
 

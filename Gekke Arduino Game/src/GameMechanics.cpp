@@ -13,31 +13,31 @@ void SetupGrid(void)
 {
     // Set up the display
     Nunchuk.begin(NUNCHUK_ADDRESS);
-  tft.setRotation(1);
-  tft.fillScreen(ILI9341_WHITE); // Make the screen white
-  tft.setTextColor(ILI9341_BLACK);
-  tft.setTextSize(2);
+    tft.setRotation(1);
+    tft.fillScreen(ILI9341_WHITE); // Make the screen white
+    tft.setTextColor(ILI9341_BLACK);
+    tft.setTextSize(2);
 
-  // Grid settings
-  int cellSize = 20; // Size of a cell (in pixels)
-  int screenWidth = 320; // Screen width (adjust for your screen)
-  int screenHeight = 240; // Screen height (adjust for your screen)
-  int x, y;
+    // Grid settings
+    int cellSize = 20; // Size of a cell (in pixels)
+    int screenWidth = 320; // Screen width (adjust for your screen)
+    int screenHeight = 240; // Screen height (adjust for your screen)
+    int x, y;
 
-  // Reserve the first 4 columns for the scoreboard
-  int scoreboardWidth = 4 * cellSize; // 4 columns for the scoreboard
+    // Reserve the first 4 columns for the scoreboard
+    int scoreboardWidth = 4 * cellSize; // 4 columns for the scoreboard
 
-  // Draw horizontal lines (no change to the y positions)
-  for (y = 0; y <= screenHeight; y += cellSize)
-  {
-    tft.drawLine(scoreboardWidth, y, screenWidth, y, ILI9341_BLACK); // Start from scoreboardWidth to skip the left area
-  }
+    // Draw horizontal lines (no change to the y positions)
+    for (y = 0; y <= screenHeight; y += cellSize)
+    {
+      tft.drawLine(scoreboardWidth, y, screenWidth, y, ILI9341_BLACK); // Start from scoreboardWidth to skip the left area
+    }
 
-  // Draw vertical lines (skip the first 4 columns for the scoreboard)
-  for (x = scoreboardWidth; x <= screenWidth; x += cellSize)
-  {
-    tft.drawLine(x, 0, x, screenHeight, ILI9341_BLACK);
-  }
+    // Draw vertical lines (skip the first 4 columns for the scoreboard)
+    for (x = scoreboardWidth; x <= screenWidth; x += cellSize)
+    {
+      tft.drawLine(x, 0, x, screenHeight, ILI9341_BLACK);
+    }
 }
 
 void updateDisplay(uint16_t *posXp, uint16_t *posYp)
@@ -74,11 +74,11 @@ void updateDisplay(uint16_t *posXp, uint16_t *posYp)
                         if (grid[gridY][gridX] == 1) {
                             tft.fillRect(cellX + 5, cellY + 5, 10, 10, ILI9341_BLACK); // Mijn
                         } else {
-                            int mineCount = countAdjacentMines(gridX, gridY);
+                            int TreasureCount = countAdjacentTreasures(gridX, gridY);
                             tft.setCursor(cellX + 6, cellY + 3);
                             tft.setTextSize(1);
                             tft.setTextColor(ILI9341_BLACK);
-                            tft.print(mineCount);
+                            tft.print(TreasureCount);
                         }
                     }
                 }
@@ -126,11 +126,11 @@ void updateDisplay(uint16_t *posXp, uint16_t *posYp)
                 tft.fillRect(cellX + 5, cellY + 5, 10, 10, ILI9341_BLACK);
             } else {
                 // Teken het aantal omliggende mijnen
-                int mineCount = countAdjacentMines(cursorGridX, cursorGridY);
+                int TreasureCount = countAdjacentTreasures(cursorGridX, cursorGridY);
                 tft.setCursor(cellX + 6, cellY + 3);
                 tft.setTextSize(1);
                 tft.setTextColor(ILI9341_BLACK);
-                tft.print(mineCount);
+                tft.print(TreasureCount);
             }
         }
     }
@@ -139,7 +139,7 @@ void updateDisplay(uint16_t *posXp, uint16_t *posYp)
 
 
 
-int countAdjacentMines(int gridX, int gridY) {
+int countAdjacentTreasures(int gridX, int gridY) {
     int count = 0;
 
     // Loop door alle omliggende cellen
@@ -165,36 +165,28 @@ int countAdjacentMines(int gridX, int gridY) {
 
 
 // Functie om mijnen te genereren
-void generateMines() {
-    randomSeed(millis()); // Initialize the random generator
-    
-    // Create an array of indices
-    int indices[GRID_ROWS * GRID_COLUMNS];
-    for (int i = 0; i < GRID_ROWS * GRID_COLUMNS; i++) {
-        indices[i] = i;
+void generateTreasures() {
+    for (int row = 0; row < GRID_ROWS; row++) {
+        for (int col = 0; col < GRID_COLUMNS; col++) {
+            grid[row][col] = 0;      // Geen mijn
+            revealed[row][col] = false; // Vakje niet gegraven
+        }
     }
 
-    // Shuffle the indices
-    for (int i = GRID_ROWS * GRID_COLUMNS - 1; i > 0; i--) {
-        int j = random(i + 1);
-        
-        // Instead of using swap(), manually swap the values
-        int temp = indices[i];
-        indices[i] = indices[j];
-        indices[j] = temp;
-    }
+    int TreasuresPlaced = 0;
+    while (TreasuresPlaced < TREASURE_COUNT) {
+        int randomRow = random(0, GRID_ROWS);
+        int randomCol = random(0, GRID_COLUMNS);
 
-    // Place mines at the shuffled indices
-    for (int i = 0; i < MINE_COUNT; i++) {
-        int index = indices[i];
-        int row = index / GRID_COLUMNS;
-        int col = index % GRID_COLUMNS;
-        grid[row][col] = 1;
+        if (grid[randomRow][randomCol] == 0) {
+            grid[randomRow][randomCol] = 1; // Plaats mijn
+            TreasuresPlaced++;
+        }
     }
 }
 
 // Functie om mijnen weer te geven
-void drawMines() {
+void drawTreasures() {
     for (int row = 0; row < GRID_ROWS; row++) {
         for (int col = 0; col < GRID_COLUMNS; col++) {
             if (grid[row][col] == 1) {
@@ -223,9 +215,9 @@ void digAction(uint16_t posX, uint16_t posY) {
 
         if (grid[gridY][gridX] == 1) {
             // Er is een mijn - toon mijn en voer actie uit
-            int mineX = 4 * 20 + gridX * 20; // Pixelpositie van mijn
-            int mineY = gridY * 20;
-            tft.fillRect(mineX + 5, mineY + 5, 10, 10, ILI9341_BLACK); // Teken mijn
+            int TreasureX = 4 * 20 + gridX * 20; // Pixelpositie van mijn
+            int TreasureY = gridY * 20;
+            tft.fillRect(TreasureX + 5, TreasureY + 5, 10, 10, ILI9341_BLACK); // Teken mijn
             // Increment player 1 score (if desired action occurs)
             player1Score++;  // Increment score when the player successfully digs a safe cell
             //tft.fillScreen(ILI9341_RED); // Maak het scherm rood
@@ -241,13 +233,13 @@ void digAction(uint16_t posX, uint16_t posY) {
             tft.fillRect(digX + 1, digY + 1, 18, 18, ILI9341_WHITE); // Maak de cel wit
 
             // Tel omliggende mijnen
-            int mineCount = countAdjacentMines(gridX, gridY);
+            int TreasureCount = countAdjacentTreasures(gridX, gridY);
 
             // Toon het aantal omliggende mijnen, inclusief 0
             tft.setCursor(digX + 6, digY + 3); // Centreer in de cel
             tft.setTextSize(1);
             tft.setTextColor(ILI9341_BLACK);
-            tft.print(mineCount); // Print ook "0" als er geen omliggende mijnen zijn
+            tft.print(TreasureCount); // Print ook "0" als er geen omliggende mijnen zijn
         }
     }
 }
