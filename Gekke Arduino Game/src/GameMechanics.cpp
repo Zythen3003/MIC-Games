@@ -289,7 +289,7 @@ void displayScoreboard(uint16_t posX, uint16_t posY) {
   else if(player1Score != lastScorePlayer1)  // Check if player score has changed
   {
     // Clear previous grid position if it has changed
-    tft.fillRect(55, 55, 27, 40, backgroundColor); // Clear the player 1 and player 2 scores
+    tft.fillRect(55, 55, 25, 40, backgroundColor); // Clear the player 1 and player 2 scores
 
     tft.setCursor(5, 65);  // Position for "Player 1:"
     tft.print("Player 1: "); // Print the score of Player 1
