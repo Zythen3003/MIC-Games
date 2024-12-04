@@ -1,20 +1,12 @@
-#ifndef Infrarood_H
-#define Infrarood_H
+#ifndef INFRAROOD_H
+#define INFRAROOD_H
 
-#include "Arduino.h"
-#include "SoftwareSerial.h"
+// Functies declaraties
+void delayMicroseconds(unsigned int microseconds);
+void delayMilliseconds(unsigned int milliseconds);
+void timerSetup(void);
+void IRSetup(void);
+void SendOne(void);
+void SendZero(void);
 
-class Infrarood {
-public:
-	Infrarood();
-
-	SoftwareSerial _serial;
-
-	void send(char message);
-	char receive();
-
-private:
-	char prevChar;
-};
-
-#endif
+#endif  // INFRAROOD_H
