@@ -64,7 +64,7 @@ void updateDisplay(uint16_t *posXp, uint16_t *posYp)
                     int cellY = gridY * 20;
 
                     // Restore background
-                    tft.fillRect(cellX + 1, cellY + 1, 18, 18, ILI9341_WHITE);
+                    tft.fillRect(cellX + 1, cellY + 1, 19, 19, ILI9341_WHITE);
 
                     // Restore grid lines
                     tft.drawLine(cellX, cellY, cellX + 20, cellY, ILI9341_BLACK); // Horizontal line
