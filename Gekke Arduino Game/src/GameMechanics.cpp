@@ -1,17 +1,18 @@
 #include <GameMechanics.h>
-
+#include <HardwareSerial.h>
 
 // Global Variables
 extern Adafruit_ILI9341 tft;
-extern int grid[GRID_ROWS][GRID_COLUMNS]; // Grid to hold Treasures
-extern bool revealed[GRID_ROWS][GRID_COLUMNS]; // Keeps track of whether a cell has been dug
+extern int grid[GRID_SIZE][GRID_SIZE]; // Grid to hold Treasures
+extern bool revealed[GRID_SIZE][GRID_SIZE]; // Keeps track of whether a cell has been dug
 extern uint16_t cursorBuffer[BUFFER_SIZE]; // Buffer for background under the cursor
 extern uint8_t player1Score; // Tracks Player 1's score
 extern uint8_t player2Score; // Tracks Player 2's score
 
+uint8_t cellSize = SCREEN_HEIGHT / GRID_SIZE;
+uint8_t scoreboardWidth = 80;
 
-void SetupGrid(void)
-{
+void SetupGrid() {
     // Set up the display
     Nunchuk.begin(NUNCHUK_ADDRESS);
     tft.setRotation(1);
@@ -19,27 +20,17 @@ void SetupGrid(void)
     tft.setTextColor(ILI9341_BLACK);
     tft.setTextSize(2);
 
-    // Grid settings
-    int cellSize = 20; // Size of a cell (in pixels)
-    int screenWidth = 320; // Screen width (adjust for your screen)
-    int screenHeight = 240; // Screen height (adjust for your screen)
-    int x, y;
-
-    // Reserve the first 4 columns for the scoreboard
-    int scoreboardWidth = 4 * cellSize; // 4 columns for the scoreboard
-
-    // Draw horizontal lines (no change to the y positions)
-    for (y = 0; y <= screenHeight; y += cellSize)
-    {
-      tft.drawLine(scoreboardWidth, y, screenWidth, y, ILI9341_BLACK); // Start from scoreboardWidth to skip the left area
+    // Draw horizontal lines
+    for (int y = 0; y <= SCREEN_HEIGHT; y += cellSize) {
+        tft.drawLine(scoreboardWidth, y, SCREEN_WIDTH, y, ILI9341_BLACK);
     }
 
     // Draw vertical lines (skip the first 4 columns for the scoreboard)
-    for (x = scoreboardWidth; x <= screenWidth; x += cellSize)
-    {
-      tft.drawLine(x, 0, x, screenHeight, ILI9341_BLACK);
+    for (int x = scoreboardWidth; x <= SCREEN_WIDTH; x += cellSize) {
+        tft.drawLine(x, 0, x, SCREEN_HEIGHT, ILI9341_BLACK);
     }
 }
+
 
 void updateDisplay(uint16_t *posXp, uint16_t *posYp)
 {
@@ -47,10 +38,10 @@ void updateDisplay(uint16_t *posXp, uint16_t *posYp)
     static int oldGridYStart = -1, oldGridYEnd = -1;
 
     // Calculate the new bounding box of the cursor
-    int newGridXStart = (*posXp - RADIUS_PLAYER - (4 * 20)) / 20;
-    int newGridXEnd = (*posXp + RADIUS_PLAYER - (4 * 20)) / 20;
-    int newGridYStart = (*posYp - RADIUS_PLAYER) / 20;
-    int newGridYEnd = (*posYp + RADIUS_PLAYER) / 20;
+    int newGridXStart = (*posXp - RADIUS_PLAYER - scoreboardWidth) / cellSize;
+    int newGridXEnd = (*posXp + RADIUS_PLAYER - scoreboardWidth) / cellSize;
+    int newGridYStart = (*posYp - RADIUS_PLAYER) / cellSize;
+    int newGridYEnd = (*posYp + RADIUS_PLAYER) / cellSize;
 
     // Check if the cursor is in a new grid cell
     if (newGridXStart != oldGridXStart || newGridXEnd != oldGridXEnd ||
@@ -59,21 +50,21 @@ void updateDisplay(uint16_t *posXp, uint16_t *posYp)
         // Restore the old bounding box
         for (int gridX = oldGridXStart; gridX <= oldGridXEnd; gridX++) {
             for (int gridY = oldGridYStart; gridY <= oldGridYEnd; gridY++) {
-                if (gridX >= 0 && gridX < GRID_COLUMNS && gridY >= 0 && gridY < GRID_ROWS) {
-                    int cellX = 4 * 20 + gridX * 20;
-                    int cellY = gridY * 20;
+                if (gridX >= 0 && gridX < GRID_SIZE && gridY >= 0 && gridY < GRID_SIZE) {
+                    int cellX = scoreboardWidth + gridX * cellSize;
+                    int cellY = gridY * cellSize;
 
                     // Restore background
-                    tft.fillRect(cellX + 1, cellY + 1, 19, 19, ILI9341_WHITE);
+                    tft.fillRect(cellX + 1, cellY + 1, cellSize-1, cellSize-1, ILI9341_WHITE);
 
                     // Restore grid lines
-                    tft.drawLine(cellX, cellY, cellX + 20, cellY, ILI9341_BLACK); // Horizontal line
-                    tft.drawLine(cellX, cellY, cellX, cellY + 20, ILI9341_BLACK); // Vertical line
+                    tft.drawLine(cellX, cellY, cellX + cellSize, cellY, ILI9341_BLACK); // Horizontal line
+                    tft.drawLine(cellX, cellY, cellX, cellY + cellSize, ILI9341_BLACK); // Vertical line
 
                     // Restore numbers and Treasures
                     if (revealed[gridY][gridX]) {
                         if (grid[gridY][gridX] == 1) {
-                            tft.fillRect(cellX + 5, cellY + 5, 10, 10, ILI9341_BLACK); // Treasure
+                            tft.fillRect(cellX + 5, cellY + 5, cellSize, cellSize, ILI9341_BLACK); // Treasure
                         } else {
                             int TreasureCount = countAdjacentTreasures(gridX, gridY);
                             tft.setCursor(cellX + 6, cellY + 3);
@@ -106,19 +97,19 @@ void updateDisplay(uint16_t *posXp, uint16_t *posYp)
     }
 
     // Keep the cursor within the screen
-    *posXp = constrain(*posXp, RADIUS_PLAYER + 4 * 20, 320 - RADIUS_PLAYER - 1);
-    *posYp = constrain(*posYp, RADIUS_PLAYER, 240 - RADIUS_PLAYER - 1);
+    *posXp = constrain(*posXp, RADIUS_PLAYER + scoreboardWidth, SCREEN_WIDTH - RADIUS_PLAYER - 1);
+    *posYp = constrain(*posYp, RADIUS_PLAYER, SCREEN_HEIGHT - RADIUS_PLAYER - 1);
 
     // Draw new cursor
     tft.fillCircle(*posXp, *posYp, RADIUS_PLAYER, ILI9341_BLUE);
 
     // Check if the cursor is on a valid grid position
-    int cursorGridX = (*posXp - (4 * 20)) / 20;
-    int cursorGridY = *posYp / 20;
+    int cursorGridX = (*posXp - scoreboardWidth) / cellSize;
+    int cursorGridY = *posYp / cellSize;
 
-    if (cursorGridX >= 0 && cursorGridX < GRID_COLUMNS && cursorGridY >= 0 && cursorGridY < GRID_ROWS) {
-        int cellX = 4 * 20 + cursorGridX * 20;
-        int cellY = cursorGridY * 20;
+    if (cursorGridX >= 0 && cursorGridX < GRID_SIZE && cursorGridY >= 0 && cursorGridY < GRID_SIZE) {
+        int cellX = scoreboardWidth + cursorGridX * cellSize;
+        int cellY = cursorGridY * cellSize;
 
         // If the cell is revealed, show the number of adjacent Treasures or the Treasure
         if (revealed[cursorGridY][cursorGridX]) {
@@ -137,9 +128,6 @@ void updateDisplay(uint16_t *posXp, uint16_t *posYp)
     }
 }
 
-
-
-
 int countAdjacentTreasures(int gridX, int gridY) {
     int count = 0;
 
@@ -151,8 +139,8 @@ int countAdjacentTreasures(int gridX, int gridY) {
             int neighborY = gridY + offsetY;
 
             // Check if the neighbor cell is within the grid
-            if (neighborX >= 0 && neighborX < GRID_COLUMNS &&
-                neighborY >= 0 && neighborY < GRID_ROWS) {
+            if (neighborX >= 0 && neighborX < GRID_SIZE &&
+                neighborY >= 0 && neighborY < GRID_SIZE) {
                 // Only count Treasures
                 if (grid[neighborY][neighborX] == 1) {
                     count++;
@@ -167,8 +155,8 @@ int countAdjacentTreasures(int gridX, int gridY) {
 
 // Function to generate treasures
 void generateTreasures() {
-    for (int row = 0; row < GRID_ROWS; row++) {
-        for (int col = 0; col < GRID_COLUMNS; col++) {
+    for (int row = 0; row < GRID_SIZE; row++) {
+        for (int col = 0; col < GRID_SIZE; col++) {
             grid[row][col] = 0;      // no Treasure
             revealed[row][col] = false; // row and column are not revealed
         }
@@ -176,8 +164,8 @@ void generateTreasures() {
 
     int TreasuresPlaced = 0;
     while (TreasuresPlaced < TREASURE_COUNT) {
-        int randomRow = random(0, GRID_ROWS);
-        int randomCol = random(0, GRID_COLUMNS);
+        int randomRow = random(0, GRID_SIZE);
+        int randomCol = random(0, GRID_SIZE);
 
         if (grid[randomRow][randomCol] == 0) {
             grid[randomRow][randomCol] = 1; // Place Treasure
@@ -188,11 +176,11 @@ void generateTreasures() {
 
 // Function to display treasures
 void drawTreasures() {
-    for (int row = 0; row < GRID_ROWS; row++) {
-        for (int col = 0; col < GRID_COLUMNS; col++) {
+    for (int row = 0; row < GRID_SIZE; row++) {
+        for (int col = 0; col < GRID_SIZE; col++) {
             if (grid[row][col] == 1) {
-                int x = 4 * 20 + col * 20; // Calculate x-coordinate
-                int y = row * 20;          // Calculate y-coordinate
+                int x = scoreboardWidth + col * cellSize; // Calculate x-coordinate
+                int y = row * cellSize;          // Calculate y-coordinate
                 tft.fillRect(x + 5, y + 5, 10, 10, ILI9341_BLACK); // Treasure
             }
         }
@@ -201,11 +189,11 @@ void drawTreasures() {
 
 // Function to dig a cell
 void digAction(uint16_t posX, uint16_t posY) {
-    int gridX = (posX - (4 * 20)) / 20;
-    int gridY = posY / 20;
+    int gridX = (posX - scoreboardWidth) / cellSize;
+    int gridY = posY / cellSize;
 
     // Check if within the grid and not revealed yet
-    if (gridX >= 0 && gridX < GRID_COLUMNS && gridY >= 0 && gridY < GRID_ROWS) {
+    if (gridX >= 0 && gridX < GRID_SIZE && gridY >= 0 && gridY < GRID_SIZE) {
         if (revealed[gridY][gridX]) {
             return;
         }
@@ -214,15 +202,15 @@ void digAction(uint16_t posX, uint16_t posY) {
         // Reveal the mine or the number of adjacent mines
         if (grid[gridY][gridX] == 1) {
             // Game over, mine dug
-            int TreasureX = 4 * 20 + gridX * 20; //Pixelposition for the mine
-            int TreasureY = gridY * 20;
+            int TreasureX = scoreboardWidth + gridX * cellSize; //Pixelposition for the mine
+            int TreasureY = gridY * cellSize;
             tft.fillRect(TreasureX + 5, TreasureY + 5, 10, 10, ILI9341_BLACK); // Draw the mine
             // Increment player 1 score (if desired action occurs)
             player1Score++;  // Increment score when the player successfully digs a safe cell
         } else {
             // No mine, dig the cell
-            int digX = 4 * 20 + gridX * 20; // Pixelpositiion for the cell
-            int digY = gridY * 20;
+            int digX = scoreboardWidth + gridX * cellSize; // Pixelpositiion for the cell
+            int digY = gridY * cellSize;
             tft.fillRect(digX + 1, digY + 1, 18, 18, ILI9341_WHITE); // Make the cell white
 
             // Count the number of adjacent mines
@@ -244,8 +232,8 @@ void displayScoreboard(uint16_t posX, uint16_t posY) {
   static int lastScorePlayer1;  // -1 to indicate initial value
 
   // Calculate the grid position
-  int gridX = (posX - (4 * 20)) / 20; // Subtract the space for the scoreboard
-  int gridY = posY / 20;
+  int gridX = (posX - scoreboardWidth) / cellSize; // Subtract the space for the scoreboard
+  int gridY = posY / cellSize;
 
   // Define the background color of the scoreboard (white or whatever background color you are using)
   uint16_t backgroundColor = ILI9341_WHITE; // Change to match your background color if needed

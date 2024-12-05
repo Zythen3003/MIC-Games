@@ -9,15 +9,16 @@
 #define TFT_CS 10
 #define NUNCHUK_ADDRESS 0x52
 #define RADIUS_PLAYER 5
-#define GRID_COLUMNS 12 // Columns in the grid
-#define GRID_ROWS 12    // Rows in the grid
+#define GRID_SIZE 12    // Rows in the grid
 #define TREASURE_COUNT 0   // Number of Treasures
 #define BUFFER_SIZE (2 * RADIUS_PLAYER * 2 * RADIUS_PLAYER)
+#define SCREEN_WIDTH 320
+#define SCREEN_HEIGHT 240
 
 // Global variables
 extern Adafruit_ILI9341 tft;
-extern int grid[GRID_ROWS][GRID_COLUMNS];
-extern bool revealed[GRID_ROWS][GRID_COLUMNS];
+extern int grid[GRID_SIZE][GRID_SIZE];
+extern bool revealed[GRID_SIZE][GRID_SIZE];
 extern uint16_t cursorBuffer[BUFFER_SIZE];
 extern uint8_t player1Score;
 extern uint8_t player2Score;

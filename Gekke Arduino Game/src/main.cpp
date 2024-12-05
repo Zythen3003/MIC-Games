@@ -18,8 +18,8 @@
 // Global variables 
 Adafruit_ILI9341 tft = Adafruit_ILI9341(TFT_CS, TFT_DC);
 volatile uint16_t ticksSinceLastUpdate;
-int grid[GRID_ROWS][GRID_COLUMNS];
-bool revealed[GRID_ROWS][GRID_COLUMNS];
+int grid[GRID_SIZE][GRID_SIZE];
+bool revealed[GRID_SIZE][GRID_SIZE];
 uint16_t cursorBuffer[BUFFER_SIZE];
 uint8_t player1Score;
 uint8_t player2Score;
