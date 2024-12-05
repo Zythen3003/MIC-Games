@@ -18,11 +18,6 @@
 // Global variables 
 Adafruit_ILI9341 tft = Adafruit_ILI9341(TFT_CS, TFT_DC);
 volatile uint16_t ticksSinceLastUpdate;
-int grid[GRID_SIZE][GRID_SIZE];
-bool revealed[GRID_SIZE][GRID_SIZE];
-uint16_t cursorBuffer[BUFFER_SIZE];
-uint8_t player1Score;
-uint8_t player2Score;
 
 ISR(TIMER0_COMPA_vect)
 {
@@ -37,7 +32,6 @@ void timerSetup(void)
   TCCR0B |= (1 << CS01);   // Prescaler of 8
 }
 
-
 void setup(void)
 {
   timerSetup();
@@ -46,15 +40,12 @@ void setup(void)
     // Draw the grid only once at the start
   SetupGrid();
   generateTreasures();
-   
 }
-
 
 int main(void)
 {
-  setup();
-
-  Serial.begin(9600);
+    Serial.begin(9600);
+    setup();
 
 	// join I2C bus as master
 	Wire.begin();
@@ -65,7 +56,6 @@ int main(void)
   uint16_t posY = ILI9341_TFTHEIGHT / 2;
   uint16_t *posXp = &posX;
   uint16_t *posYp = &posY;
-
 
   tft.fillCircle(posX, posY, RADIUS_PLAYER, ILI9341_BLUE);
   // sendBits(0b0100010110101010);
@@ -91,10 +81,6 @@ int main(void)
       digAction(*posXp, *posYp);
       displayScoreboard(posX, posY);
    }
-
-    // if (Nunchuk.state.c_button || Nunchuk.state.z_button) {
-    //     Serial.println(isSending);
-    // }
 }
   return 0;
 }

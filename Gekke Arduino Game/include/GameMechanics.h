@@ -17,11 +17,6 @@
 
 // Global variables
 extern Adafruit_ILI9341 tft;
-extern int grid[GRID_SIZE][GRID_SIZE];
-extern bool revealed[GRID_SIZE][GRID_SIZE];
-extern uint16_t cursorBuffer[BUFFER_SIZE];
-extern uint8_t player1Score;
-extern uint8_t player2Score;
 
 // Function Declarations
 void SetupGrid();

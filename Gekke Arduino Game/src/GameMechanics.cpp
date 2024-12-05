@@ -3,12 +3,12 @@
 
 // Global Variables
 extern Adafruit_ILI9341 tft;
-extern int grid[GRID_SIZE][GRID_SIZE]; // Grid to hold Treasures
-extern bool revealed[GRID_SIZE][GRID_SIZE]; // Keeps track of whether a cell has been dug
-extern uint16_t cursorBuffer[BUFFER_SIZE]; // Buffer for background under the cursor
-extern uint8_t player1Score; // Tracks Player 1's score
-extern uint8_t player2Score; // Tracks Player 2's score
 
+uint8_t grid[GRID_SIZE][GRID_SIZE]; // Grid to hold Treasures
+bool revealed[GRID_SIZE][GRID_SIZE]; // Keeps track of whether a cell has been dug
+uint16_t cursorBuffer[BUFFER_SIZE]; // Buffer for background under the cursor
+uint8_t player1Score;
+uint8_t player2Score;
 uint8_t cellSize = SCREEN_HEIGHT / GRID_SIZE;
 uint8_t scoreboardWidth = 80;
 
