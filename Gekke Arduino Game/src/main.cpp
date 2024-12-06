@@ -21,7 +21,7 @@ bool revealed[GRID_ROWS][GRID_COLUMNS]; // Tracks whether a cell has been reveal
 Menu menu(&tft); // Initialize the menu system
 
 volatile uint16_t ticksSinceLastUpdate = 0; // Used to refresh display at a consistent rate
-bool gameStarted = false; // Flag to check if the game has started
+bool gameStarted = false;
 
 ISR(TIMER0_COMPA_vect)
 {
@@ -44,36 +44,6 @@ void setup(void)
   SetupGrid();
   // Draw the menu
   menu.drawMenu();
-}
-
-void handleMenuInput()
-{
-    if (Nunchuk.getState(NUNCHUK_ADDRESS)) {
-        int joyX = Nunchuk.state.joy_x_axis;
-
-        // Navigate menu using joystick input
-        if (joyX < 100) { // left
-            menu.updateSelection(-1);
-        } else if (joyX > 150) { // Right
-            menu.updateSelection(1);
-        }
-
-        // Confirm menu selection with the Z button
-        if (Nunchuk.state.z_button) {
-            int selectedOption = menu.getSelectedOption();
-
-            if (selectedOption == 0) { // Singleplayer selected
-                Serial.println("Singleplayer selected");
-                gameStarted = true; // Mark game as started
-                SetupGrid(); // Call SetupGrid() for the game
-                // Add game logic for singleplayer mode here
-            } else if (selectedOption == 1) { // Multiplayer selected
-                Serial.println("Multiplayer selected");
-                gameStarted = true; // Mark game as started
-                // Add multiplayer setup code here
-            }
-        }
-    }
 }
 
 
@@ -111,7 +81,7 @@ int main(void)
 
         } else {
             // If the game hasn't started, continue showing the menu
-            handleMenuInput();
+            menu.handleMenuInput();
         }
     }
 
