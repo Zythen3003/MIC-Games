@@ -24,7 +24,12 @@ void Menu::handleMenuInput() {
                 // Add game logic for singleplayer mode here
             } else if (selectedOption == 1) { // Multiplayer selected
                 Serial.println("Multiplayer selected");
-                gameStarted = true; // Mark game as started
+                gameStarted = false; // Mark game as started
+                tft->fillScreen(ILI9341_DARKGREEN);
+                tft->setTextColor(ILI9341_BLACK);
+                tft->setTextSize(3);
+                tft->setCursor(30, 20);
+                tft->println("Multiplayer mode");
                 // Add multiplayer setup code here
             }
         }
