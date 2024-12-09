@@ -10,7 +10,7 @@
 #define NUNCHUK_ADDRESS 0x52
 #define RADIUS_PLAYER 5
 #define GRID_SIZE 12    // Rows in the grid
-#define TREASURE_COUNT 0   // Number of Treasures
+#define TREASURE_COUNT 5   // Number of Treasures
 #define BUFFER_SIZE (2 * RADIUS_PLAYER * 2 * RADIUS_PLAYER)
 #define SCREEN_WIDTH 320
 #define SCREEN_HEIGHT 240
@@ -18,6 +18,10 @@
 // Global variables
 extern Adafruit_ILI9341 tft;
 
+// Other game mechanics function prototypes
+bool isGameOver();
+extern int player1Score;
+extern int player2Score;
 // Function Declarations
 void SetupGrid();
 void displayScoreboard(uint16_t posX, uint16_t posY);
@@ -26,5 +30,6 @@ void updateDisplay(uint16_t *posXp, uint16_t *posYp);
 void generateTreasures();
 void drawTreasures();
 void digAction(uint16_t posX, uint16_t posY);
+
 
 #endif

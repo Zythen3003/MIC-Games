@@ -4,11 +4,12 @@
 // Global Variables
 extern Adafruit_ILI9341 tft;
 
+int player1Score = 0; // Initialize player1Score
+int player2Score = 0; // Initialize player2Score
+
 uint8_t grid[GRID_SIZE][GRID_SIZE]; // Grid to hold Treasures
 bool revealed[GRID_SIZE][GRID_SIZE]; // Keeps track of whether a cell has been dug
 uint16_t cursorBuffer[BUFFER_SIZE]; // Buffer for background under the cursor
-uint8_t player1Score;
-uint8_t player2Score;
 uint8_t cellSize = SCREEN_HEIGHT / GRID_SIZE;
 uint8_t scoreboardWidth = 80;
 
@@ -29,6 +30,9 @@ void SetupGrid() {
     for (int x = scoreboardWidth; x <= SCREEN_WIDTH; x += cellSize) {
         tft.drawLine(x, 0, x, SCREEN_HEIGHT, ILI9341_BLACK);
     }
+    // Generate Treasures
+    generateTreasures();
+
 }
 
 
@@ -204,7 +208,7 @@ void digAction(uint16_t posX, uint16_t posY) {
             // Game over, mine dug
             int TreasureX = scoreboardWidth + gridX * cellSize; //Pixelposition for the mine
             int TreasureY = gridY * cellSize;
-            tft.fillRect(TreasureX + 5, TreasureY + 5, 10, 10, ILI9341_BLACK); // Draw the mine
+            tft.fillRect(TreasureX + 5, TreasureY + 5, 5, 5, ILI9341_BLACK); // Draw the mine
             // Increment player 1 score (if desired action occurs)
             player1Score++;  // Increment score when the player successfully digs a safe cell
         } else {
@@ -286,4 +290,17 @@ void displayScoreboard(uint16_t posX, uint16_t posY) {
     tft.setCursor(5, 85);  // Position for "Player 2:"
     tft.print("Player 2:");
   }
+}
+
+bool isGameOver() {
+    // Check if all treasures have been revealed
+    int revealedTreasures = 0;
+    for (int row = 0; row < GRID_SIZE; row++) {
+        for (int col = 0; col < GRID_SIZE; col++) {
+            if (grid[row][col] == 1 && revealed[row][col]) {
+                revealedTreasures++;
+            }
+        }
+    }
+    return revealedTreasures == TREASURE_COUNT;
 }
