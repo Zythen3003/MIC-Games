@@ -68,7 +68,7 @@ void updateDisplay(uint16_t *posXp, uint16_t *posYp)
                     // Restore numbers and Treasures
                     if (revealed[gridY][gridX]) {
                         if (grid[gridY][gridX] == 1) {
-                            tft.fillRect(cellX + 5, cellY + 5, cellSize, cellSize, ILI9341_BLACK); // Treasure
+                            tft.fillRect(cellX + 5, cellY + 5, cellSize - 10, cellSize - 10, ILI9341_BLACK); // Treasure
                         } else {
                             int TreasureCount = countAdjacentTreasures(gridX, gridY);
                             tft.setCursor(cellX + 6, cellY + 3);
@@ -119,7 +119,7 @@ void updateDisplay(uint16_t *posXp, uint16_t *posYp)
         if (revealed[cursorGridY][cursorGridX]) {
             if (grid[cursorGridY][cursorGridX] == 1) {
                 // Draw the Treasure
-                tft.fillRect(cellX + 5, cellY + 5, 10, 10, ILI9341_BLACK);
+                tft.fillRect(cellX + 5, cellY + 5, cellSize - 10, cellSize - 10, ILI9341_BLACK);
             } else {
                 // Draw the number of adjacent Treasures
                 int TreasureCount = countAdjacentTreasures(cursorGridX, cursorGridY);
@@ -185,7 +185,7 @@ void drawTreasures() {
             if (grid[row][col] == 1) {
                 int x = scoreboardWidth + col * cellSize; // Calculate x-coordinate
                 int y = row * cellSize;          // Calculate y-coordinate
-                tft.fillRect(x + 5, y + 5, 10, 10, ILI9341_BLACK); // Treasure
+                tft.fillRect(x + 5, y + 5, cellSize - 10, cellSize - 10, ILI9341_BLACK); // Treasure
             }
         }
     }
@@ -208,7 +208,7 @@ void digAction(uint16_t posX, uint16_t posY) {
             // Game over, mine dug
             int TreasureX = scoreboardWidth + gridX * cellSize; //Pixelposition for the mine
             int TreasureY = gridY * cellSize;
-            tft.fillRect(TreasureX + 5, TreasureY + 5, 5, 5, ILI9341_BLACK); // Draw the mine
+            tft.fillRect(TreasureX + 5, TreasureY + 5, cellSize - 10, cellSize - 10, ILI9341_BLACK); // Draw the mine
             // Increment player 1 score (if desired action occurs)
             player1Score++;  // Increment score when the player successfully digs a safe cell
         } else {
