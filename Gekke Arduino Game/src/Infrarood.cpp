@@ -5,8 +5,8 @@
 // Variabele beschikbaar maken voor main
 uint32_t tempByte = 0;
 bool newDataAvailable = false; // Nieuwe data beschikbaar
+uint16_t readCount = 0;
 
-#define SECOND 15624
 #define BURST_1_DURATION 38
 #define BURST_0_DURATION 19
 #define BURST_start_DURATION 342
@@ -33,21 +33,16 @@ void timer0Setup(void) {
     TCCR0A |= (1 << WGM01);
     OCR0A = 52;
     TIMSK0 |= (1 << OCIE0A);
-    TCCR0B |= (1 << CS01);
-}
-
-void timer1Setup(void) {
-    TCCR1A = 0;
-    TCCR1B = (1 << CS12) | (1 << CS10) | (1 << WGM12);
-    OCR1A = SECOND;
-    TIMSK1 = (1 << OCIE1A);
+    TCCR0B |= (1 << CS01);  // Zet prescaler op 8 voor Timer0
+    Serial.println("interuptcheck");
 }
 
 void setupInterrupt0(void) {
-    EICRA |= (1 << ISC01) | (1 << ISC00);
-    EIMSK |= (1 << INT0);
-    DDRD &= ~(1 << DDD2);
-    PORTD |= (1 << PORTD2);
+    EICRA |= (1 << ISC01) | (1 << ISC00); 
+    EIMSK |= (1 << INT0); // Zet de interrupt enable voor INT0
+    DDRD &= ~(1 << DDD2); // Zet PD2 (INT0) als ingang
+    PORTD |= (1 << PORTD2); // Zet pull-up weerstand aan
+    Serial.println("interuptcheck");
 }
 
 void sendNextBit() {
@@ -84,17 +79,9 @@ void sendNextBit() {
     }
 }
 
-
-ISR(TIMER1_COMPA_vect) {
-    if (!sending) {
-        sending = true;
-        bitIndex = 0;
-        isPausing = false;
-        sendNextBit();
-    }
-}
-
+// Interrupt voor Timer0
 ISR(TIMER0_COMPA_vect) {
+     readCount++;
     if (burstCounter > 0) {
         burstCounter--;
         if (burstCounter == 0 && sending) {
@@ -103,13 +90,12 @@ ISR(TIMER0_COMPA_vect) {
     }
 }
 
+// Interrupt voor INT0 (externe interrupt, bijvoorbeeld voor ontvangen signalen)
 ISR(INT0_vect) {
-    PORTB ^= (1 << PORTB5);
-
+    PORTB ^= (1 << PORTB5); // LED knipperen bij ontvangst
     static uint16_t lastFallingEdgeTime = 0;
-    uint16_t currentTime = TCNT1;
-    uint16_t pulseDuration = currentTime - lastFallingEdgeTime;
-    lastFallingEdgeTime = currentTime;
+    uint16_t pulseDuration = readCount - lastFallingEdgeTime;
+    lastFallingEdgeTime = readCount;
 
     uint8_t nextHead = (bufferHead + 1) % BUFFER_SIZE;
     if (nextHead == bufferTail) {
@@ -121,16 +107,17 @@ ISR(INT0_vect) {
     }
 }
 
+// Functie om ontvangen pulsen te verwerken
 void processPulse(uint16_t pulseDuration) {
     static uint8_t receivedBits = 0;
 
     Serial.print("Pulse breedte: ");
     Serial.println(pulseDuration);
 
-    if (pulseDuration <= 19) {
+    if (pulseDuration <= 50) {
         tempByte = (tempByte << 1) | 0;
         receivedBits++;
-    } else if (pulseDuration >= 20) {
+    } else if (pulseDuration >= 51) {
         tempByte = (tempByte << 1) | 1;
         receivedBits++;
     }
@@ -141,18 +128,19 @@ void processPulse(uint16_t pulseDuration) {
     }
 }
 
+// Verwerk de ontvangen pulsen
 void processReceivedPulses() {
     if (newPulseAvailable) {
-        cli();
+        cli();  // Zet interrupts uit voor veilige toegang tot de buffer
         while (bufferTail != bufferHead) {
             uint16_t pulseDuration = pulseBuffer[bufferTail];
             bufferTail = (bufferTail + 1) % BUFFER_SIZE;
-            sei();
+            sei(); // Zet interrupts weer aan
             processPulse(pulseDuration);
-            cli();
+            cli();  // Zet interrupts uit voor veilige toegang tot de buffer
         }
         newPulseAvailable = false;
-        sei();
+        sei(); // Zet interrupts weer aan
     }
 
     if (bufferOverflow) {
@@ -161,12 +149,21 @@ void processReceivedPulses() {
     }
 }
 
+// Initialisatie van de IR-module
 void initInfrarood() {
-    DDRD |= (1 << DDD6);
-    DDRD &= ~(1 << DDD2);
-    DDRB |= (1 << DDB5);       // Zet pin 13 (LED) als uitgang
-    timer0Setup();
-    timer1Setup();
-    setupInterrupt0();
-    dataByte = 0b10101010101010101010101010101010;
+    DDRD |= (1 << DDD6);  // Zet PD6 (OC0A) als uitgang voor IR
+    DDRD &= ~(1 << DDD2); // Zet PD2 (INT0) als ingang voor ontvangen signalen
+    DDRB |= (1 << DDB5);  // Zet pin 13 (LED) als uitgang
+
+    timer0Setup();  // Zet Timer0 op voor burst
+    setupInterrupt0(); // Zet externe interrupt voor ontvangst
+}
+
+// Functie om de databyte te verzenden
+void sendDataByte(uint32_t data) {
+    dataByte = data;  // Stel de te verzenden data in
+    sending = true;
+    bitIndex = 0;
+    isPausing = false;
+    sendNextBit(); // Start de verzending van de eerste bit
 }

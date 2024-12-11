@@ -2,16 +2,19 @@
 #include "Infrarood.h"
 
 void setup() {
-    initInfrarood();
     Serial.begin(9600);
-    sei(); // Globale interrupts aan
+    initInfrarood();
+    sei(); // Zet globale interrupts aan
 }
 
 int main(void) {
     setup();
     
+    uint32_t dataToSend = 0b10101010101010101010101010101010; // Voorbeelddata
+    sendDataByte(dataToSend); // Verstuur de data maar één keer
+    
     while (1) {
-        processReceivedPulses(); // Verwerk binnenkomende pulsen
+        processReceivedPulses(); // Verwerk ontvangen signalen
 
         if (newDataAvailable) { // Controleer of nieuwe data beschikbaar is
             Serial.print("Ontvangen byte: ");
