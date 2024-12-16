@@ -63,13 +63,13 @@ void setup(void)
   menu.drawMenu();
 }
 
-// Toevoegen van een functie om de cooldown weer te geven op de 7-segment display
+// Display the cooldown for the digAction on the 7-segment display
 void displayCooldown(uint32_t remainingTime) {
-    // Zet de display op de resterende tijd (bijv. seconden)
-    int seconds = remainingTime / 5000;  // Omrekeningen naar seconden
-    if (seconds < 0 || seconds > 7) return;  // Zorg ervoor dat de waarde binnen 0-7 blijft
+    // Convert the remaining time to seconds
+    int seconds = remainingTime / 5000;
+    if (seconds < 0 || seconds > 7) return;  // Only display 0-7 on the 7-segment display
     Wire.beginTransmission(PCF8574A_ADDR);
-    Wire.write(~segmentMap[seconds]); // Zet de segmenten voor de resterende tijd
+    Wire.write(~segmentMap[seconds]); // Display the remaining time on the 7-segment display
     Wire.endTransmission();
 }
 
@@ -100,8 +100,8 @@ while (1)
             updateDisplay(posXp, posYp);
             ticksSinceLastUpdate = 0;
         }
-        // Toon de cooldown op de 7-segment display
-        displayCooldown(digCooldown - lastDigTime); // Toon de resterende tijd in milliseconden
+        // Display the cooldown for the digAction on the 7-segment display
+        displayCooldown(digCooldown - lastDigTime); // Display the remaining time on the 7-segment display
 
         // Check for Nunchuk button presses
         if (Nunchuk.state.c_button || Nunchuk.state.z_button) {
