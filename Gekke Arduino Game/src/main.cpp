@@ -65,11 +65,11 @@ void setup(void)
 
 // Display the cooldown for the digAction on the 7-segment display
 void displayCooldown(uint32_t remainingTime) {
-    // Convert the remaining time to seconds
-    int seconds = remainingTime / 5000;
-    if (seconds < 0 || seconds > 7) return;  // Only display 0-7 on the 7-segment display
+    // Convert the remaining time to segments
+    int segments = remainingTime / 5000;
+    if (segments < 0 || segments > 7) return;  // Only display 0-7 on the 7-segment display
     Wire.beginTransmission(PCF8574A_ADDR);
-    Wire.write(~segmentMap[seconds]); // Display the remaining time on the 7-segment display
+    Wire.write(~segmentMap[segments]); // Display the remaining time on the 7-segment display
     Wire.endTransmission();
 }
 
