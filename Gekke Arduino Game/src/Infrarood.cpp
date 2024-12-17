@@ -14,7 +14,7 @@ uint8_t readCount = 0;
 #define PAUSE_DURATION 19
 #define BUFFER_SIZE 8
 
-volatile uint32_t pulseBuffer[BUFFER_SIZE];
+volatile uint8_t pulseBuffer[BUFFER_SIZE];
 volatile uint8_t bufferHead = 0;
 volatile uint8_t bufferTail = 0;
 volatile bool bufferOverflow = false;
