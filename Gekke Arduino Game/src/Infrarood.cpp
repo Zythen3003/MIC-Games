@@ -3,16 +3,16 @@
 #include <avr/interrupt.h>
 
 // Variabele beschikbaar maken voor main
-uint32_t tempByte = 0;
+uint8_t tempByte = 0;
 bool newDataAvailable = false; // Nieuwe data beschikbaar
-uint16_t readCount = 0;
+uint8_t readCount = 0;
 
-#define BURST_1_DURATION 38
+#define BURST_1_DURATION 38 
 #define BURST_0_DURATION 19
 #define BURST_start_DURATION 342
 #define BURST_pausestart_DURATION 171
 #define PAUSE_DURATION 19
-#define BUFFER_SIZE 32
+#define BUFFER_SIZE 8
 
 volatile uint32_t pulseBuffer[BUFFER_SIZE];
 volatile uint8_t bufferHead = 0;
@@ -20,10 +20,10 @@ volatile uint8_t bufferTail = 0;
 volatile bool bufferOverflow = false;
 volatile bool newPulseAvailable = false;
 
-volatile uint16_t burstCounter = 0; // Maak burstCounter 16-bit
+volatile uint16_t burstCounter = 0; 
 volatile bool sending = false;
 volatile uint8_t currentBit = 0;
-volatile uint32_t dataByte = 0;
+volatile uint8_t dataByte = 0;
 volatile uint8_t bitIndex = 0;
 volatile bool isPausing = false;
 
@@ -34,7 +34,7 @@ void timer0Setup(void) {
     OCR0A = 52;
     TIMSK0 |= (1 << OCIE0A);
     TCCR0B |= (1 << CS01);  // Zet prescaler op 8 voor Timer0
-    Serial.println("interuptcheck");
+    Serial.println("interuptcheck"); // debug
 }
 
 void setupInterrupt0(void) {
@@ -42,7 +42,7 @@ void setupInterrupt0(void) {
     EIMSK |= (1 << INT0); // Zet de interrupt enable voor INT0
     DDRD &= ~(1 << DDD2); // Zet PD2 (INT0) als ingang
     PORTD |= (1 << PORTD2); // Zet pull-up weerstand aan
-    Serial.println("interuptcheck");
+    Serial.println("interuptcheck"); // debug
 }
 
 void sendNextBit() {
@@ -60,10 +60,10 @@ void sendNextBit() {
             TCCR0A &= ~(1 << COM0A0);      // Ontkoppel Timer0 van OC0A
             sendingStartBit = false;       // Startbit is verzonden, ga naar databytes
         }
-    } else if (bitIndex < 32) {
+    } else if (bitIndex < 8) {
         if (!isPausing) {
             // Stuur de bits van de databyte
-            currentBit = (dataByte >> (31 - bitIndex)) & 0x01; // Extracteer huidig bit
+            currentBit = (dataByte >> (7 - bitIndex)) & 0x01; // Extracteer huidig bit
             burstCounter = (currentBit == 1) ? BURST_1_DURATION : BURST_0_DURATION;
             TCCR0A |= (1 << COM0A0); // Activeer output voor burst
             isPausing = true;        // Start pauze na deze burst
@@ -79,7 +79,7 @@ void sendNextBit() {
     }
 }
 
-// Interrupt voor Timer0
+// Timer0
 ISR(TIMER0_COMPA_vect) {
      readCount++;
     if (burstCounter > 0) {
@@ -92,7 +92,9 @@ ISR(TIMER0_COMPA_vect) {
 
 // Interrupt voor INT0 (externe interrupt, bijvoorbeeld voor ontvangen signalen)
 ISR(INT0_vect) {
-    PORTB ^= (1 << PORTB5); // LED knipperen bij ontvangst
+
+    PORTB ^= (1 << PORTB5); // debug: LED knipperen bij ontvangst
+
     static uint16_t lastFallingEdgeTime = 0;
     uint16_t pulseDuration = readCount - lastFallingEdgeTime;
     lastFallingEdgeTime = readCount;
@@ -114,6 +116,7 @@ void processPulse(uint16_t pulseDuration) {
     Serial.print("Pulse breedte: ");
     Serial.println(pulseDuration);
 
+//  drempelwaarde die duration vergelijkt waarna tempByte een 1 of een 0 krijgt
     if (pulseDuration <= 50) {
         tempByte = (tempByte << 1) | 0;
         receivedBits++;
@@ -122,7 +125,8 @@ void processPulse(uint16_t pulseDuration) {
         receivedBits++;
     }
 
-    if (receivedBits == 32) {
+//  als er 8 bits zijn ontvangen kan de data worden uitgelezen in main door boolean newdataAvailable
+    if (receivedBits == 8) {
         newDataAvailable = true; // Zet de vlag voor nieuwe data
         receivedBits = 0;        // Reset teller voor ontvangen bits
     }
@@ -160,7 +164,7 @@ void initInfrarood() {
 }
 
 // Functie om de databyte te verzenden
-void sendDataByte(uint32_t data) {
+void sendDataByte(uint8_t data) {
     dataByte = data;  // Stel de te verzenden data in
     sending = true;
     bitIndex = 0;

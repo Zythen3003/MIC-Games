@@ -10,7 +10,7 @@ void setup() {
 int main(void) {
     setup();
     
-    uint32_t dataToSend = 0b10101010101010101010101010101010; // Voorbeelddata
+    uint8_t dataToSend = 0b10101010; // Voorbeelddata
     sendDataByte(dataToSend); // Verstuur de data maar één keer
     
     while (1) {
