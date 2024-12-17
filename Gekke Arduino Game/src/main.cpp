@@ -3,6 +3,7 @@
 #include "Adafruit_ILI9341.h"
 #include <HardwareSerial.h>
 #include <GameMechanics.h>
+#include "buzzer.h" // Include the buzzer header
 
 #define BAUDRATE 9600
 #define PCF8574A_ADDR 0x21        // I2C address of the PCF8574A
@@ -33,6 +34,15 @@ ISR(TIMER0_COMPA_vect)
   lastDigTime++;
 }
 
+// Example frequencies
+const Frequency frequencies[] = {
+    262, 294, 330, 349, 392, 440, 494, 523
+};
+const int numFrequencies = sizeof(frequencies) / sizeof(frequencies[0]);
+
+Buzzer myBuzzer; // Create an instance of the Buzzer class
+
+
 void timerSetup(void)
 {
   TIMSK0 |= (1 << OCIE0A); // enable comp match a interrupt
@@ -61,6 +71,11 @@ void setup(void)
 
   // Draw the initial menu
   menu.drawMenu();
+
+  for (int i = 0; i < numFrequencies; i++) {
+        myBuzzer.playTone(frequencies[i], 200);
+        delay(50);
+    }
 }
 
 // Display the cooldown for the digAction on the 7-segment display
