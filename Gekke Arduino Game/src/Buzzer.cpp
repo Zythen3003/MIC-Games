@@ -1,68 +1,96 @@
 #include "buzzer.h"
 
-volatile bool Buzzer::isPlaying = false; // Define the static member
+// Static member variables
+volatile bool Buzzer::isPlaying = false;  // Flag indicating if tone is playing
+volatile unsigned long Buzzer::toneEndTicks = 0;  // Time when the tone should stop
+volatile unsigned long Buzzer::timerTicks = 0;  // Global tick counter
 
+// Timer1 interrupt handler: toggles the buzzer pin for tone and increments timerTicks
+ISR(TIMER1_COMPA_vect) {
+  if (Buzzer::isPlaying) {
+    PORTD ^= (1 << BUZZER_PIN);  // Toggle buzzer pin to generate tone
+  }
+  
+  Buzzer::timerTicks++;  // Increment global timer tick
+}
+
+// Constructor: sets up the buzzer and Timer1
 Buzzer::Buzzer() {
-    // Set the buzzer pin as output using direct port manipulation
-    DDRB |= (1 << BUZZER_PIN); // Assuming BUZZER_PIN is a pin on PORTB
-    PORTB &= ~(1 << BUZZER_PIN); // Set the pin LOW
+  DDRD |= (1 << BUZZER_PIN);  // Set buzzer pin as output
+  PORTD &= ~(1 << BUZZER_PIN);  // Ensure buzzer is off
+  setupTimer1(1000);  // Initialize Timer1 for timing
 }
 
-void Buzzer::setupTimer2(Frequency frequency) {
-    Serial.print("Setting up Timer2 for frequency: ");
-    Serial.println(frequency);
+// Setup Timer1 to generate frequency-based interrupts for tone
+void Buzzer::setupTimer1(Frequency frequency) {
+  if (frequency == 0) return;  // Skip if frequency is 0
 
-    TCCR2B = 0;
-    TCCR2A = 0;
+  TCCR1B = 0;  // Stop Timer1
+  TCCR1A = 0;  // Clear Timer1 control registers
+  TIMSK1 &= ~(1 << OCIE1A);  // Disable Timer1 interrupt
 
-    if (frequency == 0) {
-        Serial.println("Frequency is 0, returning");
-        return;
-    }
+  TCCR1B |= (1 << CS21);  // Set Timer1 prescaler to 8
+  TCCR1A |= (1 << WGM21);  // Set Timer1 to CTC mode
 
-    TCCR2B |= (1 << CS21); // Prescaler 8
-    TCCR2A |= (1 << WGM21); // CTC Mode
+  OCR1A = (F_CPU / (8 * 2 * frequency)) - 1;  // Calculate compare value for given frequency
 
-    OCR2A = (F_CPU / (8 * 2 * frequency)) - 1;
-    Serial.print("OCR2A value: ");
-    Serial.println(OCR2A);
+  TIMSK1 |= (1 << OCIE1A);  // Enable Timer1 compare match interrupt
 
-    TIMSK2 |= (1 << OCIE2A);
-    Serial.println("Timer2 interrupt enabled");
+    // Debugging: print the OCR1A value and frequency
+  //Serial.print("Timer1 set up with frequency: ");
+  //Serial.print(frequency);
+  //Serial.print(" Hz, OCR1A: ");
+  //Serial.println(OCR1A);
 }
 
-ISR(TIMER2_COMPA_vect) {
-    if (Buzzer::isPlaying) {
-        static bool buzzerState = false;
-        // Toggle the buzzer pin using direct port manipulation
-        if (buzzerState) {
-            PORTB |= (1 << BUZZER_PIN); // Set the pin HIGH
-        } else {
-            PORTB &= ~(1 << BUZZER_PIN); // Set the pin LOW
-        }
-        buzzerState = !buzzerState;
-    } else {
-        // Ensure the buzzer is off using direct port manipulation
-        PORTB &= ~(1 << BUZZER_PIN); // Set the pin LOW
-        TIMSK2 &= ~(1 << OCIE2A);
-        Serial.println("Timer2 interrupt disabled");
-    }
-}
-
+// Play a tone with specified frequency and duration
 void Buzzer::playTone(Frequency frequency, unsigned long duration) {
-    Serial.print("Playing tone with frequency: ");
-    Serial.println(frequency);
-    if (frequency == 0) {
-        return;
-    }
-    Buzzer::isPlaying = true;
-    setupTimer2(frequency);
-    _delay_ms(duration);
-    noTone();
-    Serial.println("Tone finished");
+  if (frequency == 0) return;  // Skip if frequency is 0
+
+  duration = duration * 1.5;  // Increase duration by 50%
+
+  // If a tone is already playing, stop it before starting the new one
+  if (isPlaying) {
+    noTone();  // Stop the current tone
+  }
+
+  isPlaying = true;  // Set playing flag to true
+  setupTimer1(frequency);  // Setup Timer1 for tone generation
+  toneEndTicks = timerTicks + duration;  // Calculate and store when tone should end
+
+    // Debugging: print when the tone starts and its duration
+  //Serial.print("Playing tone at ");
+  //Serial.print(frequency);
+  //Serial.print(" Hz for ");
+  //Serial.print(duration);
+  //Serial.println(" ms.");
 }
 
+// Update function to check if tone should stop
+void Buzzer::update() {
+  if (isPlaying && timerTicks >= toneEndTicks) {
+    noTone();  // Stop tone if time is up
+  }
+   // Debugging: print the current timerTicks and toneEndTicks
+  if (isPlaying) {
+    //Serial.print("timerTicks: ");
+    //Serial.print(timerTicks);
+    //Serial.print(", toneEndTicks: ");
+    //Serial.println(toneEndTicks);
+  }
+}
+
+// Stop the tone and reset Timer1
 void Buzzer::noTone() {
-    Serial.println("Stopping tone");
-    Buzzer::isPlaying = false;
+  isPlaying = false;  // Clear playing flag
+  TIMSK1 &= ~(1 << OCIE1A);  // Disable Timer1 interrupt
+  TCCR1B = 0;  // Stop Timer1
+  PORTD &= ~(1 << BUZZER_PIN);  // Ensure buzzer is off
+}
+
+
+// Function to create a non-blocking delay
+void Buzzer::nonBlockingDelay(unsigned long duration) {
+    unsigned long startTime = Buzzer::timerTicks;
+    while (Buzzer::timerTicks - startTime < duration);
 }

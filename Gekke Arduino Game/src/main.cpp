@@ -13,6 +13,7 @@ Adafruit_ILI9341 tft = Adafruit_ILI9341(TFT_CS, TFT_DC);
 volatile uint16_t ticksSinceLastUpdate;
 bool gameStarted = false; // To track if the game has started
 Menu menu(&tft);          // Initialize the menu with the display
+Buzzer myBuzzer; // Create an instance of the Buzzer class
 
 volatile uint32_t lastDigTime = 0;  // Track the last dig time
 uint32_t digCooldown = 35000; // 3 seconds cooldown
@@ -34,13 +35,30 @@ ISR(TIMER0_COMPA_vect)
   lastDigTime++;
 }
 
-// Example frequencies
-const Frequency frequencies[] = {
-    262, 294, 330, 349, 392, 440, 494, 523
-};
-const int numFrequencies = sizeof(frequencies) / sizeof(frequencies[0]);
 
-Buzzer myBuzzer; // Create an instance of the Buzzer class
+void playIntro(Buzzer& myBuzzer) {
+  // Play the intro melody
+  myBuzzer.playTone(262, 100);
+  myBuzzer.nonBlockingDelay(200);
+  myBuzzer.playTone(294, 100);
+  myBuzzer.nonBlockingDelay(200);
+  myBuzzer.playTone(330, 100);
+  myBuzzer.nonBlockingDelay(200);
+  myBuzzer.playTone(349, 100);
+  myBuzzer.nonBlockingDelay(200);
+  myBuzzer.noTone();
+}
+
+void playDigSound(Buzzer& myBuzzer) {
+  // "Dig" sound effect (using two close frequencies rapidly)
+  myBuzzer.playTone(400, 50);
+  myBuzzer.nonBlockingDelay(20);
+  myBuzzer.playTone(350, 50);
+  myBuzzer.nonBlockingDelay(50);
+  myBuzzer.playTone(300, 50);
+  myBuzzer.nonBlockingDelay(50);
+  myBuzzer.noTone();
+}
 
 
 void timerSetup(void)
@@ -71,11 +89,9 @@ void setup(void)
 
   // Draw the initial menu
   menu.drawMenu();
+  //myBuzzer.testBuzzer(); // Test the buzzer
 
-  for (int i = 0; i < numFrequencies; i++) {
-        myBuzzer.playTone(frequencies[i], 200);
-        delay(50);
-    }
+  playIntro(myBuzzer);
 }
 
 // Display the cooldown for the digAction on the 7-segment display
@@ -125,6 +141,7 @@ while (1)
         }
 
         if (Nunchuk.state.z_button && lastDigTime >= digCooldown) {
+            playDigSound(myBuzzer); // Play the dig sound effect  
             digAction(*posXp, *posYp);
             displayScoreboard(posX, posY);
             lastDigTime = 0;  // Reset last dig time after action
