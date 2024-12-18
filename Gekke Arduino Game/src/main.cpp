@@ -63,16 +63,16 @@ void playDigSound(Buzzer& myBuzzer) {
 
 void playCorrectSound(Buzzer& myBuzzer) {
     // Play a short, ascending tone
-    myBuzzer.playTone(440, 300);  // A4 for 100ms
+    myBuzzer.playTone(440, 300);
     myBuzzer.nonBlockingDelay(400);
-    myBuzzer.playTone(523, 300);  // C5 for 100ms
+    myBuzzer.playTone(523, 300);
     myBuzzer.nonBlockingDelay(400);
-    myBuzzer.playTone(659, 300);  // E5 for 100ms
-    myBuzzer.playTone(440, 300);  // A4 for 100ms
+    myBuzzer.playTone(659, 300);
+    myBuzzer.playTone(440, 300);
     myBuzzer.nonBlockingDelay(400);
-    myBuzzer.playTone(523, 300);  // C5 for 100ms
+    myBuzzer.playTone(523, 300);
     myBuzzer.nonBlockingDelay(400);
-    myBuzzer.playTone(659, 300);  // E5 for 100m
+    myBuzzer.playTone(659, 300); 
     myBuzzer.noTone();
 
 }
@@ -165,12 +165,18 @@ while (1)
             lastDigTime = 0;  // Reset last dig time after action
         }
             
-        // Check if the game is over
-        if (isGameOver()) {
-            gameStarted = false; // Stop the game
-            menu.displayEndGameMessage(); // Call the member function to display the end game message
-            menu.drawMenu(); // Redraw the main menu after game over
+      if (isGameOver()) {
+        menu.displayEndGameMessage(); // Call the member function to display the end game message
+        // Wait until a button is pressed to proceed
+        while (true) {
+            Nunchuk.getState(NUNCHUK_ADDRESS); // Update the Nunchuk state
+            if (Nunchuk.state.c_button || Nunchuk.state.z_button) {
+                break; // Exit the loop when a button is pressed
+            }
         }
+        menu.drawMenu(); // Return to the main menu
+        gameStarted = false; // Stop the game
+      }
     }
 }
 return 0;
