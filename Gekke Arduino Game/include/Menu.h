@@ -21,5 +21,7 @@ private:
 };
 
 extern bool gameStarted;
+extern bool multiplayer;
+
 
 #endif // MENU_H

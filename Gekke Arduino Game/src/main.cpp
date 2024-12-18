@@ -1,8 +1,10 @@
+#include <stdint.h>
 #include "menu.h"
 #include "Nunchuk.h"
 #include "Adafruit_ILI9341.h"
 #include <HardwareSerial.h>
 #include <GameMechanics.h>
+#include <Multiplayer.h>
 
 #define TOGGLENUMBER 38 // number of times the IR emitter toggles to send one bit
 #define BAUDRATE 9600
@@ -17,6 +19,7 @@
 Adafruit_ILI9341 tft = Adafruit_ILI9341(TFT_CS, TFT_DC);
 volatile uint16_t ticksSinceLastUpdate;
 bool gameStarted = false; // To track if the game has started
+bool multiplayer = false;
 Menu menu(&tft);          // Initialize the menu with the display
 
 ISR(TIMER0_COMPA_vect)
@@ -54,46 +57,51 @@ int main(void)
 {
     setup();
 
-uint16_t posX = ILI9341_TFTWIDTH / 2;
-uint16_t posY = ILI9341_TFTHEIGHT / 2;
-uint16_t *posXp = &posX;
-uint16_t *posYp = &posY;
+    uint16_t posX = ILI9341_TFTWIDTH / 2;
+    uint16_t posY = ILI9341_TFTHEIGHT / 2;
+    uint16_t *posXp = &posX;
+    uint16_t *posYp = &posY;
 
-while (1)
-{
-    if (!gameStarted) {
-        // Handle menu input until a game mode is selected
-        menu.handleMenuInput();
-    } else {
-        // The game logic begins once a mode is selected
-        tft.fillCircle(posX, posY, RADIUS_PLAYER, ILI9341_BLACK);
+    while (1)
+    {
+        if (!gameStarted) {
+            // Handle menu input until a game mode is selected
+            menu.handleMenuInput();
+        } else {
+            // The game logic begins once a mode is selected
+            tft.fillCircle(posX, posY, RADIUS_PLAYER, ILI9341_BLACK);
 
-        // Display the player's grid position and scoreboard
-        displayScoreboard(posX, posY);
+            if (multiplayer) {
+                tft.fillCircle(getPlayer2X(), getPlayer2Y(), RADIUS_PLAYER, ILI9341_RED);
+            }
 
-        if (ticksSinceLastUpdate > 380) // 100FPS
-        {
-            updateDisplay(posXp, posYp);
-            ticksSinceLastUpdate = 0;
-        }
-
-        // Check for Nunchuk button presses
-        if (Nunchuk.state.c_button || Nunchuk.state.z_button) {
-            // Display the player's grid position when any button is pressed
+            // Display the player's grid position and scoreboard
             displayScoreboard(posX, posY);
-        }
 
-        if (Nunchuk.state.z_button) {
-            digAction(*posXp, *posYp);
-            displayScoreboard(posX, posY);
-        }
-        // Check if the game is over
-        if (isGameOver()) {
-            gameStarted = false; // Stop the game
-            menu.displayEndGameMessage(); // Call the member function to display the end game message
-            menu.drawMenu(); // Redraw the main menu after game over
+            if (ticksSinceLastUpdate > 380) // 100FPS
+            {
+                updateDisplay(posXp, posYp);
+                ticksSinceLastUpdate = 0;
+            }
+
+            // Check for Nunchuk button presses
+            if (Nunchuk.state.c_button || Nunchuk.state.z_button) {
+                // Display the player's grid position when any button is pressed
+                displayScoreboard(posX, posY);
+            }
+
+            if (Nunchuk.state.z_button) {
+                digAction(*posXp, *posYp, true);
+                displayScoreboard(posX, posY);
+            }
+            // Check if the game is over
+            if (isGameOver()) {
+                gameStarted = false; // Stop the game
+                menu.displayEndGameMessage(); // Call the member function to display the end game message
+                menu.drawMenu(); // Redraw the main menu after game over
+            }
         }
     }
-}
-return 0;
+    
+    return 0;
 }

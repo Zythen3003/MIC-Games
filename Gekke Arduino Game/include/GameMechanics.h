@@ -29,7 +29,7 @@ int countAdjacentTreasures(int gridX, int gridY);
 void updateDisplay(uint16_t *posXp, uint16_t *posYp);
 void generateTreasures();
 void drawTreasures();
-void digAction(uint16_t posX, uint16_t posY);
+void digAction(uint16_t posX, uint16_t posY, bool isPlayer1);
 
 
 #endif

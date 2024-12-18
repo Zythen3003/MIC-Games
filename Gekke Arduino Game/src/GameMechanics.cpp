@@ -192,7 +192,7 @@ void drawTreasures() {
 }
 
 // Function to dig a cell
-void digAction(uint16_t posX, uint16_t posY) {
+void digAction(uint16_t posX, uint16_t posY, bool isPlayer1) {
     int gridX = (posX - scoreboardWidth) / cellSize;
     int gridY = posY / cellSize;
 
@@ -210,7 +210,11 @@ void digAction(uint16_t posX, uint16_t posY) {
             int TreasureY = gridY * cellSize;
             tft.fillRect(TreasureX + 5, TreasureY + 5, cellSize - 10, cellSize - 10, ILI9341_BLACK); // Draw the mine
             // Increment player 1 score (if desired action occurs)
-            player1Score++;  // Increment score when the player successfully digs a safe cell
+            if (isPlayer1) {
+                player1Score++;  // Increment score when the player successfully digs a safe cell
+            } else {
+                player2Score++;
+            }
         } else {
             // No mine, dig the cell
             int digX = scoreboardWidth + gridX * cellSize; // Pixelpositiion for the cell
@@ -253,6 +257,7 @@ void displayScoreboard(uint16_t posX, uint16_t posY) {
 
   tft.setCursor(5, 85);  // Position for "Player 2:"
   tft.print("Player 2:");
+  tft.print(player2Score); // Print the score of Player 1
 
   tft.setCursor(10, 115);  // Position for "Current"
   tft.print("Current ");

@@ -24,6 +24,7 @@ void Menu::handleMenuInput() {
             } else if (selectedOption == 1) { // Multiplayer selected
                 Serial.println("Multiplayer selected");
                 gameStarted = false; // Mark game as started
+                multiplayer = true;
                 tft->fillScreen(ILI9341_DARKGREEN);
                 tft->setTextColor(ILI9341_BLACK);
                 tft->setTextSize(3);
