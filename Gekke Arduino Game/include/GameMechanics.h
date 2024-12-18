@@ -22,6 +22,7 @@ extern Adafruit_ILI9341 tft;
 bool isGameOver();
 extern int player1Score;
 extern int player2Score;
+extern bool isTreasure;
 
 // Function Declarations
 void SetupGrid();

@@ -51,15 +51,31 @@ void playIntro(Buzzer& myBuzzer) {
 
 void playDigSound(Buzzer& myBuzzer) {
   // "Dig" sound effect (using two close frequencies rapidly)
-  myBuzzer.playTone(400, 50);
-  myBuzzer.nonBlockingDelay(20);
-  myBuzzer.playTone(350, 50);
-  myBuzzer.nonBlockingDelay(50);
-  myBuzzer.playTone(300, 50);
-  myBuzzer.nonBlockingDelay(50);
+  myBuzzer.playTone(59, 300);
+  myBuzzer.nonBlockingDelay(100);
+  myBuzzer.playTone(23, 300);
+  myBuzzer.nonBlockingDelay(100);
+  myBuzzer.playTone(40, 300);
+  myBuzzer.nonBlockingDelay(100);
   myBuzzer.noTone();
 }
 
+
+void playCorrectSound(Buzzer& myBuzzer) {
+    // Play a short, ascending tone
+    myBuzzer.playTone(440, 300);  // A4 for 100ms
+    myBuzzer.nonBlockingDelay(400);
+    myBuzzer.playTone(523, 300);  // C5 for 100ms
+    myBuzzer.nonBlockingDelay(400);
+    myBuzzer.playTone(659, 300);  // E5 for 100ms
+    myBuzzer.playTone(440, 300);  // A4 for 100ms
+    myBuzzer.nonBlockingDelay(400);
+    myBuzzer.playTone(523, 300);  // C5 for 100ms
+    myBuzzer.nonBlockingDelay(400);
+    myBuzzer.playTone(659, 300);  // E5 for 100m
+    myBuzzer.noTone();
+
+}
 
 void timerSetup(void)
 {
@@ -141,9 +157,11 @@ while (1)
         }
 
         if (Nunchuk.state.z_button && lastDigTime >= digCooldown) {
-            playDigSound(myBuzzer); // Play the dig sound effect  
+        
             digAction(*posXp, *posYp);
             displayScoreboard(posX, posY);
+            if(!isTreasure){ playDigSound(myBuzzer);} else playCorrectSound(myBuzzer);
+            isTreasure = false; // Reset the isTreasure flag
             lastDigTime = 0;  // Reset last dig time after action
         }
             
