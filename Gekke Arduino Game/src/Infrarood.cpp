@@ -2,51 +2,54 @@
 #include <avr/io.h>
 #include <avr/interrupt.h>
 
+#define BUFFER_SIZE1 8
 // Variabele beschikbaar maken voor main
 uint8_t tempByte = 0;
 bool newDataAvailable = false; // Nieuwe data beschikbaar
 uint8_t readCount = 0;
+
+uint8_t pulseBuffer[BUFFER_SIZE1];
+uint8_t bufferHead = 0;
+uint8_t bufferTail = 0;
+bool bufferOverflow = false;
+bool newPulseAvailable = false;
+
+uint16_t burstCounter = 0; 
+bool sending = false;
 
 #define BURST_1_DURATION 38 
 #define BURST_0_DURATION 19
 #define BURST_start_DURATION 342
 #define BURST_pausestart_DURATION 171
 #define PAUSE_DURATION 19
-#define BUFFER_SIZE 8
 
-volatile uint8_t pulseBuffer[BUFFER_SIZE];
-volatile uint8_t bufferHead = 0;
-volatile uint8_t bufferTail = 0;
-volatile bool bufferOverflow = false;
-volatile bool newPulseAvailable = false;
-
-volatile uint16_t burstCounter = 0; 
-volatile bool sending = false;
 volatile uint8_t currentBit = 0;
 volatile uint8_t dataByte = 0;
 volatile uint8_t bitIndex = 0;
 volatile bool isPausing = false;
 
-void timer0Setup(void) {
-    TCCR0A = 0;
-    TCCR0B = 0;
-    TCCR0A |= (1 << WGM01);
-    OCR0A = 52;
-    TIMSK0 |= (1 << OCIE0A);
-    TCCR0B |= (1 << CS01);  // Zet prescaler op 8 voor Timer0
-    Serial.println("interuptcheck"); // debug
-}
 
-void setupInterrupt0(void) {
-    EICRA |= (1 << ISC01) | (1 << ISC00); 
-    EIMSK |= (1 << INT0); // Zet de interrupt enable voor INT0
-    DDRD &= ~(1 << DDD2); // Zet PD2 (INT0) als ingang
-    PORTD |= (1 << PORTD2); // Zet pull-up weerstand aan
-    Serial.println("interuptcheck"); // debug
-}
+// void timer0Setup(void) {
+    // TCCR0A = 0;
+    // TCCR0B = 0;
+    // TCCR0A |= (1 << WGM01);
+    // OCR0A = 52;
+    // TIMSK0 |= (1 << OCIE0A);
+    // TCCR0B |= (1 << CS01);  // Zet prescaler op 8 voor Timer0
+    // Serial.println("interuptcheck"); // debug
+// }
+// 
+// void setupInterrupt0(void) {
+    // EICRA |= (1 << ISC01) | (1 << ISC00); 
+    // EIMSK |= (1 << INT0); // Zet de interrupt enable voor INT0
+    // DDRD &= ~(1 << DDD2); // Zet PD2 (INT0) als ingang
+    // PORTD |= (1 << PORTD2); // Zet pull-up weerstand aan
+    // Serial.println("interuptcheck"); // debug
+// }
 
 void sendNextBit() {
     static bool sendingStartBit = true; // Vlag om bij te houden of startbit wordt verzonden
+    static bool sendingStopBit = false; // Vlag om bij te houden of stopbit wordt verzonden
 
     if (sendingStartBit) {
         if (!isPausing) {
@@ -73,46 +76,62 @@ void sendNextBit() {
             TCCR0A &= ~(1 << COM0A0);      // Ontkoppel Timer0 van OC0A
             bitIndex++;                    // Ga naar het volgende bit
         }
+    } else if (!sendingStopBit) {
+        // Begin met het verzenden van het stopbit (1)
+        if (!isPausing) {
+            burstCounter = BURST_1_DURATION; // Burst voor stopbit
+            TCCR0A |= (1 << COM0A0);         // Activeer output voor burst
+            isPausing = true;                // Start pauze na deze burst
+        } else {
+            burstCounter = PAUSE_DURATION; // Pauze na stopbit
+            isPausing = false;             // Reset pauze status
+            TCCR0A &= ~(1 << COM0A0);      // Ontkoppel Timer0 van OC0A
+            sendingStopBit = true;         // Stopbit is verzonden
+        }
     } else {
-        sending = false;        // Stop verzending als alle bits zijn verstuurd
+        // Alles is verzonden, reset de status
+        sending = false;        // Stop verzending
         sendingStartBit = true; // Reset voor de volgende transmissie
+        sendingStopBit = false; // Reset stopbit status
     }
 }
+
 
 // Timer0
-ISR(TIMER0_COMPA_vect) {
-     readCount++;
-    if (burstCounter > 0) {
-        burstCounter--;
-        if (burstCounter == 0 && sending) {
-            sendNextBit();
-        }
-    }
-}
+// ISR(TIMER0_COMPA_vect) {
+    //  readCount++;
+    // if (burstCounter > 0) {
+        // burstCounter--;
+        // if (burstCounter == 0 && sending) {
+            // sendNextBit();
+        // }
+    // }
+// }
 
 // Interrupt voor INT0 (externe interrupt, bijvoorbeeld voor ontvangen signalen)
-ISR(INT0_vect) {
+// ISR(INT0_vect) {
 
-    PORTB ^= (1 << PORTB5); // debug: LED knipperen bij ontvangst
-
-    static uint16_t lastFallingEdgeTime = 0;
-    uint16_t pulseDuration = readCount - lastFallingEdgeTime;
-    lastFallingEdgeTime = readCount;
-
-    uint8_t nextHead = (bufferHead + 1) % BUFFER_SIZE;
-    if (nextHead == bufferTail) {
-        bufferOverflow = true;
-    } else {
-        pulseBuffer[bufferHead] = pulseDuration;
-        bufferHead = nextHead;
-        newPulseAvailable = true;
-    }
-}
+    // PORTB ^= (1 << PORTB5); // debug: LED knipperen bij ontvangst
+// 
+    // static uint16_t lastFallingEdgeTime = 0;
+    // uint16_t pulseDuration = readCount - lastFallingEdgeTime;
+    // lastFallingEdgeTime = readCount;
+// 
+    // uint8_t nextHead = (bufferHead + 1) % BUFFER_SIZE;
+    // if (nextHead == bufferTail) {
+        // bufferOverflow = true;
+    // } else {
+        // pulseBuffer[bufferHead] = pulseDuration;
+        // bufferHead = nextHead;
+        // newPulseAvailable = true;
+    // }
+// }
 
 // Functie om ontvangen pulsen te verwerken
 void processPulse(uint16_t pulseDuration) {
     static uint8_t receivedBits = 0;
 
+//debug pulsbreedte:
     Serial.print("Pulse breedte: ");
     Serial.println(pulseDuration);
 
@@ -138,7 +157,7 @@ void processReceivedPulses() {
         cli();  // Zet interrupts uit voor veilige toegang tot de buffer
         while (bufferTail != bufferHead) {
             uint16_t pulseDuration = pulseBuffer[bufferTail];
-            bufferTail = (bufferTail + 1) % BUFFER_SIZE;
+            bufferTail = (bufferTail + 1) % BUFFER_SIZE1;
             sei(); // Zet interrupts weer aan
             processPulse(pulseDuration);
             cli();  // Zet interrupts uit voor veilige toegang tot de buffer
@@ -154,14 +173,14 @@ void processReceivedPulses() {
 }
 
 // Initialisatie van de IR-module
-void initInfrarood() {
-    DDRD |= (1 << DDD6);  // Zet PD6 (OC0A) als uitgang voor IR
-    DDRD &= ~(1 << DDD2); // Zet PD2 (INT0) als ingang voor ontvangen signalen
-    DDRB |= (1 << DDB5);  // Zet pin 13 (LED) als uitgang
+// void initInfrarood() {
+    // DDRD |= (1 << DDD6);  // Zet PD6 (OC0A) als uitgang voor IR
+    // DDRD &= ~(1 << DDD2); // Zet PD2 (INT0) als ingang voor ontvangen signalen
+    // DDRB |= (1 << DDB5);  // Zet pin 13 (LED) als uitgang
 
-    timer0Setup();  // Zet Timer0 op voor burst
-    setupInterrupt0(); // Zet externe interrupt voor ontvangst
-}
+   // timer0Setup();  // Zet Timer0 op voor burst
+   // setupInterrupt0(); // Zet externe interrupt voor ontvangst
+// }
 
 // Functie om de databyte te verzenden
 void sendDataByte(uint8_t data) {
