@@ -1,6 +1,8 @@
 #include "menu.h"
 #include "Nunchuk.h"
 #include "GameMechanics.h"
+#include <EEPROM.h>
+
 void Menu::handleMenuInput() {
     if (Nunchuk.getState(NUNCHUK_ADDRESS)) {
         int joyX = Nunchuk.state.joy_x_axis;
@@ -21,6 +23,7 @@ void Menu::handleMenuInput() {
                 isSinglePlayer = true; // Set to singleplayer mode
                 gameStarted = true; // Mark game as started
                 SetupGrid(); // Call SetupGrid() for the game
+
                 // Add game logic for singleplayer mode here
             } else if (selectedOption == 1) { // Multiplayer selected
                 Serial.println("Multiplayer selected");
@@ -136,17 +139,13 @@ void Menu::displayEndGameMessage() {
         tft->print("It's a Draw!");
     }
 
-    // Save the high score and determine if it is a new high score
-    bool isNewHighScore = false;
-    int highScore = saveHighScore(10, player1Score); // Save the high score
-    if (highScore == player1Score) {
-        isNewHighScore = true;
-    }
-
+    saveHighScore(10, gameTime); // Save the high score to EEPROM
+    
     // Display the final scores
     tft->setCursor(SCREEN_WIDTH / 2 - 60, SCREEN_HEIGHT / 2);
     tft->print("Highscore: ");
-    tft->print(highScore);
+    tft->print(gameTime);
+    tft->print("s");
 
     // Display a special message if a new high score was achieved
     if (isNewHighScore) {
@@ -191,6 +190,7 @@ int Menu::saveHighScore(int address, int newTime) {
         EEPROM.write(address, newTime >> 8);  // Write high byte
         EEPROM.write(address + 1, newTime & 0xFF);  // Write low byte
         Serial.println("New high score saved!");
+        isNewHighScore = true;
     } else {
         Serial.println("High score not beaten.");
     }

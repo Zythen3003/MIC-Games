@@ -2,7 +2,6 @@
 #define MENU_H
 
 #include <Adafruit_ILI9341.h>
-#include <EEPROM.h>
 
 // Menu class definition
 class Menu {
@@ -22,6 +21,7 @@ private:
     Adafruit_ILI9341* tft;
     int selectedOption; // Current selected option (0 = Singleplayer, 1 = Multiplayer)
     bool isSinglePlayer; // True for singleplayer, false for multiplayer
+    bool isNewHighScore = false;
 };
 
 extern bool gameStarted;
