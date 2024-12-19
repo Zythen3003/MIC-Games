@@ -143,7 +143,7 @@ void Menu::displayEndGameMessage() {
     
     // Display the final scores
     tft->setCursor(SCREEN_WIDTH / 2 - 60, SCREEN_HEIGHT / 2);
-    tft->print("Highscore: ");
+    tft->print("Score: ");
     tft->print(gameTime);
     tft->print("s");
 
@@ -193,6 +193,7 @@ int Menu::saveHighScore(int address, int newTime) {
         isNewHighScore = true;
     } else {
         Serial.println("High score not beaten.");
+        isNewHighScore = false;
     }
 
     // Display the current high score
