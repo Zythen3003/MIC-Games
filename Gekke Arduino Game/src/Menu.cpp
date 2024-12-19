@@ -18,11 +18,13 @@ void Menu::handleMenuInput() {
 
             if (selectedOption == 0) { // Singleplayer selected
                 Serial.println("Singleplayer selected");
+                isSinglePlayer = true; // Set to singleplayer mode
                 gameStarted = true; // Mark game as started
                 SetupGrid(); // Call SetupGrid() for the game
                 // Add game logic for singleplayer mode here
             } else if (selectedOption == 1) { // Multiplayer selected
                 Serial.println("Multiplayer selected");
+                isSinglePlayer = false; // Set to multiplayer mode
                 gameStarted = false; // Mark game as started
                 tft->fillScreen(ILI9341_DARKGREEN);
                 tft->setTextColor(ILI9341_BLACK);
@@ -39,6 +41,7 @@ void Menu::handleMenuInput() {
 Menu::Menu(Adafruit_ILI9341* tft) {
     this->tft = tft;
     this->selectedOption = 0; // Default to Singleplayer
+    this->isSinglePlayer = true; // Default game mode is singleplayer
 }
 
 // Draws the entire menu
@@ -120,7 +123,7 @@ void Menu::drawOption(int optionIndex, const char* text, bool selected) {
 void Menu::displayEndGameMessage() {
     tft->fillScreen(ILI9341_DARKGREEN); // Clear the screen
 
-    tft->setCursor(SCREEN_WIDTH / 2 - 60, SCREEN_HEIGHT / 2 - 40);
+    tft->setCursor(SCREEN_WIDTH / 2 - 80, SCREEN_HEIGHT / 2 - 40);
     tft->setTextSize(2);
     tft->setTextColor(ILI9341_BLACK);
 
@@ -133,7 +136,28 @@ void Menu::displayEndGameMessage() {
         tft->print("It's a Draw!");
     }
 
-    tft->setCursor(10, SCREEN_HEIGHT / 2);
+    // Save the high score and determine if it is a new high score
+    bool isNewHighScore = false;
+    int highScore = saveHighScore(10, player1Score); // Save the high score
+    if (highScore == player1Score) {
+        isNewHighScore = true;
+    }
+
+    // Display the final scores
+    tft->setCursor(SCREEN_WIDTH / 2 - 60, SCREEN_HEIGHT / 2);
+    tft->print("Highscore: ");
+    tft->print(highScore);
+
+    // Display a special message if a new high score was achieved
+    if (isNewHighScore) {
+        tft->setCursor(SCREEN_WIDTH / 2 - 80, SCREEN_HEIGHT / 2 + 20);
+        tft->setTextColor(ILI9341_RED);
+        tft->print("New High Score!");
+    }
+
+    // Display the message to return to the main menu
+    tft->setCursor(10, SCREEN_HEIGHT / 2 + 60);
+    tft->setTextColor(ILI9341_BLACK);
     tft->setTextSize(1);
     tft->print("Press button to return to Main Menu...");
 
@@ -141,4 +165,39 @@ void Menu::displayEndGameMessage() {
     player1Score = 0;
     player2Score = 0;
 
+}
+
+int Menu::readIntFromEEPROM(int address) {
+    byte byte1 = EEPROM.read(address);
+    byte byte2 = EEPROM.read(address + 1);
+    int value = (byte1 << 8) + byte2;
+
+    // Check for uninitialized EEPROM (0xFFFF)
+    if (static_cast<unsigned int>(value) == 0xFFFF) {
+        return 0; // Treat uninitialized as 0
+    }
+
+    return value;
+}
+
+int Menu::saveHighScore(int address, int newTime) {
+    // Read the current high score from EEPROM
+    int previousRecord = readIntFromEEPROM(address);
+    Serial.print("Previous high score: ");
+    Serial.println(previousRecord);
+
+    // Check and save new high score
+    if (previousRecord == 0 || newTime < previousRecord) {
+        EEPROM.write(address, newTime >> 8);  // Write high byte
+        EEPROM.write(address + 1, newTime & 0xFF);  // Write low byte
+        Serial.println("New high score saved!");
+    } else {
+        Serial.println("High score not beaten.");
+    }
+
+    // Display the current high score
+    int savedHighScore = (EEPROM.read(address) << 8) + EEPROM.read(address + 1);
+    Serial.print("Current high score: ");
+    Serial.println(savedHighScore);
+    return savedHighScore;
 }
