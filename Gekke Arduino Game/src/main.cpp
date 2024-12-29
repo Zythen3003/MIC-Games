@@ -35,46 +35,12 @@ ISR(TIMER0_COMPA_vect)
   lastDigTime++;
 }
 
-
-void playIntro(Buzzer& myBuzzer) {
-  // Play the intro melody
-  myBuzzer.playTone(262, 100);
-  myBuzzer.nonBlockingDelay(200);
-  myBuzzer.playTone(294, 100);
-  myBuzzer.nonBlockingDelay(200);
-  myBuzzer.playTone(330, 100);
-  myBuzzer.nonBlockingDelay(200);
-  myBuzzer.playTone(349, 100);
-  myBuzzer.nonBlockingDelay(200);
-  myBuzzer.noTone();
-}
-
-void playDigSound(Buzzer& myBuzzer) {
-  // "Dig" sound effect (using two close frequencies rapidly)
-  myBuzzer.playTone(59, 300);
-  myBuzzer.nonBlockingDelay(100);
-  myBuzzer.playTone(23, 300);
-  myBuzzer.nonBlockingDelay(100);
-  myBuzzer.playTone(40, 300);
-  myBuzzer.nonBlockingDelay(100);
-  myBuzzer.noTone();
-}
-
-
 void playCorrectSound(Buzzer& myBuzzer) {
     // Play a short, ascending tone
-    myBuzzer.playTone(440, 300);
-    myBuzzer.nonBlockingDelay(400);
-    myBuzzer.playTone(523, 300);
-    myBuzzer.nonBlockingDelay(400);
-    myBuzzer.playTone(659, 300);
-    myBuzzer.playTone(440, 300);
-    myBuzzer.nonBlockingDelay(400);
-    myBuzzer.playTone(523, 300);
-    myBuzzer.nonBlockingDelay(400);
-    myBuzzer.playTone(659, 300); 
-    myBuzzer.noTone();
-
+    myBuzzer.playTone(59, 10);
+    myBuzzer.playTone(440, 15); // A4 note for 200ms
+    myBuzzer.playTone(523, 15); // C5 note for 200ms
+    myBuzzer.playTone(659, 15); // E5 note for 200ms
 }
 
 void timerSetup(void)
@@ -106,8 +72,6 @@ void setup(void)
   // Draw the initial menu
   menu.drawMenu();
   //myBuzzer.testBuzzer(); // Test the buzzer
-
-  playIntro(myBuzzer);
 }
 
 // Display the cooldown for the digAction on the 7-segment display
@@ -149,7 +113,7 @@ while (1)
         }
         // Display the cooldown for the digAction on the 7-segment display
         displayCooldown(digCooldown - lastDigTime); // Display the remaining time on the 7-segment display
-
+        myBuzzer.update(); // Update the buzzer state
         // Check for Nunchuk button presses
         if (Nunchuk.state.c_button || Nunchuk.state.z_button) {
             // Display the player's grid position when any button is pressed
@@ -160,7 +124,7 @@ while (1)
         
             digAction(*posXp, *posYp);
             displayScoreboard(posX, posY);
-            if(!isTreasure){ playDigSound(myBuzzer);} else playCorrectSound(myBuzzer);
+            if(isTreasure){ playCorrectSound(myBuzzer);}
             isTreasure = false; // Reset the isTreasure flag
             lastDigTime = 0;  // Reset last dig time after action
         }

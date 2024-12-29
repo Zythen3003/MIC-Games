@@ -29,10 +29,10 @@ void Buzzer::setupTimer1(Frequency frequency) {
   TCCR1A = 0;  // Clear Timer1 control registers
   TIMSK1 &= ~(1 << OCIE1A);  // Disable Timer1 interrupt
 
-  TCCR1B |= (1 << CS21);  // Set Timer1 prescaler to 8
-  TCCR1A |= (1 << WGM21);  // Set Timer1 to CTC mode
+  // Set CS12 and CS10 bits for 1024 prescaler
+  TCCR1B |= (1 << CS12) | (1 << CS10);  TCCR1A |= (1 << WGM21);  // Set Timer1 to CTC mode
 
-  OCR1A = (F_CPU / (8 * 2 * frequency)) - 1;  // Calculate compare value for given frequency
+  OCR1A = (F_CPU / (1024 * 2 * frequency)) - 1;  // Calculate compare value for given frequency
 
   TIMSK1 |= (1 << OCIE1A);  // Enable Timer1 compare match interrupt
 
@@ -43,33 +43,29 @@ void Buzzer::setupTimer1(Frequency frequency) {
   //Serial.println(OCR1A);
 }
 
-// Play a tone with specified frequency and duration
-void Buzzer::playTone(Frequency frequency, unsigned long duration) {
-  if (frequency == 0) return;  // Skip if frequency is 0
+// If a tone is already playing, stop it before starting the new one
+void Buzzer::playTone(unsigned int frequency, unsigned long duration) {
+    if (isPlaying) {
+        noTone();  // Stop the current tone
+    }
 
-  duration = duration * 1.5;  // Increase duration by 50%
-
-  // If a tone is already playing, stop it before starting the new one
-  if (isPlaying) {
-    noTone();  // Stop the current tone
-  }
-
-  isPlaying = true;  // Set playing flag to true
-  setupTimer1(frequency);  // Setup Timer1 for tone generation
-  toneEndTicks = timerTicks + duration;  // Calculate and store when tone should end
+    isPlaying = true;  // Set playing flag to true
+    setupTimer1(frequency);  // Setup Timer1 for tone generation
+    toneEndTicks = timerTicks + duration;
 
     // Debugging: print when the tone starts and its duration
-  //Serial.print("Playing tone at ");
-  //Serial.print(frequency);
-  //Serial.print(" Hz for ");
-  //Serial.print(duration);
-  //Serial.println(" ms.");
+    //Serial.print("Playing tone at ");
+    //Serial.print(frequency);
+    //Serial.print(" Hz for ");
+    //Serial.print(duration);
+    //Serial.println(" ms.");
 }
 
 // Update function to check if tone should stop
 void Buzzer::update() {
   if (isPlaying && timerTicks >= toneEndTicks) {
     noTone();  // Stop tone if time is up
+    timerTicks = 0;  // Reset timerTicks
   }
    // Debugging: print the current timerTicks and toneEndTicks
   if (isPlaying) {
@@ -86,11 +82,5 @@ void Buzzer::noTone() {
   TIMSK1 &= ~(1 << OCIE1A);  // Disable Timer1 interrupt
   TCCR1B = 0;  // Stop Timer1
   PORTD &= ~(1 << BUZZER_PIN);  // Ensure buzzer is off
-}
-
-
-// Function to create a non-blocking delay
-void Buzzer::nonBlockingDelay(unsigned long duration) {
-    unsigned long startTime = Buzzer::timerTicks;
-    while (Buzzer::timerTicks - startTime < duration);
+  Buzzer::timerTicks = 0;  // Reset timerTicks
 }
