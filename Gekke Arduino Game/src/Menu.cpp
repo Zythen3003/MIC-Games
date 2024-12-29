@@ -49,6 +49,9 @@ Menu::Menu(Adafruit_ILI9341* tft) {
 
 // Draws the entire menu
 void Menu::drawMenu() {
+    // Load the highscores from EEPROM
+    loadHighScores();
+
     tft->fillScreen(ILI9341_DARKGREEN);
 
     // Draw title
@@ -94,7 +97,6 @@ int Menu::getSelectedOption() {
 void Menu::drawOption(int optionIndex, const char* text, bool selected) {
     int xPos = 20 + (optionIndex * 140);
     // Save the current time
-    unsigned long currentTime = 10;
     if (selected) {
         tft->fillRoundRect(xPos, 100, 130, 50, 10, ILI9341_GREEN);
     } else {
@@ -112,8 +114,11 @@ void Menu::drawOption(int optionIndex, const char* text, bool selected) {
     tft->setTextColor(ILI9341_WHITE);
     tft->setTextSize(2);
     tft->setCursor(xPos + 35, 195);
-    tft->print(currentTime);
-
+    if(optionIndex == 0) {
+        tft->print(savedHighScoreSingle);
+    } else if (optionIndex == 1) {
+        tft->print(savedHighScoreMulti);
+    }
     // Draw the "Highscore" header 
     tft->setTextColor(ILI9341_WHITE);
     tft->setTextSize(2);
@@ -200,5 +205,11 @@ int Menu::saveHighScore(int address, int newTime) {
     int savedHighScore = (EEPROM.read(address) << 8) + EEPROM.read(address + 1);
     Serial.print("Current high score: ");
     Serial.println(savedHighScore);
+    savedHighScoreSingle = savedHighScore;
     return savedHighScore;
+}
+
+void Menu::loadHighScores() {
+    savedHighScoreSingle = readIntFromEEPROM(singlePlayerHighScoreAddress);
+    savedHighScoreMulti = readIntFromEEPROM(multiPlayerHighScoreAddress);
 }
