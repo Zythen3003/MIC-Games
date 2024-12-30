@@ -18,37 +18,23 @@ void Menu::handleMenuInput() {
         if (Nunchuk.state.z_button) {
             int selectedOption = getSelectedOption();
 
-            if (selectedOption == 0) { // Singleplayer selected
-                Serial.println("Singleplayer selected");
-                isSinglePlayer = true; // Set to singleplayer mode
-                gameStarted = true; // Mark game as started
-                SetupGrid(); // Call SetupGrid() for the game
-
-                // Add game logic for singleplayer mode here
+            if (selectedOption == 0) { // Singleplayer selected                
                 startSingleplayer();
-            } else if (selectedOption == 1) { // Multiplayer selected
-                Serial.println("Multiplayer selected");
-                isSinglePlayer = false; // Set to multiplayer mode
-                gameStarted = false; // Mark game as started
-                tft->fillScreen(ILI9341_DARKGREEN);
-                tft->setTextColor(ILI9341_BLACK);
-                tft->setTextSize(3);
-                tft->setCursor(30, 20);
-                tft->println("Multiplayer mode");
+            } else if (selectedOption == 1) { // Multiplayer selected                
                 startMultiplayer();
-                // Add multiplayer setup code here
             }
         }
     }
 }
 
 void Menu::startSingleplayer() {
+    isSinglePlayer = true; // Set to singleplayer mode
     gameStarted = true; // Mark game as started
     SetupGrid(); // Call SetupGrid() for the game
-    // Add game logic for singleplayer mode here
 }
 
 void Menu::startMultiplayer() {
+    isSinglePlayer = false; // Set to multiplayer mode
     gameStarted = false; // Mark game as started
     tft->fillScreen(ILI9341_DARKGREEN);
     tft->setTextColor(ILI9341_BLACK);
