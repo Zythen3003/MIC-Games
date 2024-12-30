@@ -122,7 +122,9 @@ while (1)
         }
         // Display the cooldown for the digAction on the 7-segment display
         displayCooldown(digCooldown - lastDigTime); // Display the remaining time on the 7-segment display
+
         myBuzzer.update(); // Update the buzzer state
+      
         // Check for Nunchuk button presses
         if (Nunchuk.state.c_button || Nunchuk.state.z_button) {
             // Display the player's grid position when any button is pressed
@@ -147,6 +149,7 @@ while (1)
                 break; // Exit the loop when a button is pressed
             }
         }
+        myBuzzer.update(); // Update the buzzer state
         menu.drawMenu(); // Return to the main menu
         gameStarted = false; // Stop the game
       }

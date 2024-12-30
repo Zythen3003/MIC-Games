@@ -23,6 +23,7 @@ bool isGameOver();
 extern int player1Score;
 extern int player2Score;
 extern bool isTreasure;
+extern unsigned long gameTime;  // In-game time in seconds
 
 // Function Declarations
 void SetupGrid();
