@@ -6,6 +6,7 @@ extern Adafruit_ILI9341 tft;
 
 int player1Score = 0; // Initialize player1Score
 int player2Score = 0; // Initialize player2Score
+bool isTreasure = false; // Initialize isTreasure
 
 uint8_t grid[GRID_SIZE][GRID_SIZE]; // Grid to hold Treasures
 bool revealed[GRID_SIZE][GRID_SIZE]; // Keeps track of whether a cell has been dug
@@ -178,19 +179,6 @@ void generateTreasures() {
     }
 }
 
-// Function to display treasures
-void drawTreasures() {
-    for (int row = 0; row < GRID_SIZE; row++) {
-        for (int col = 0; col < GRID_SIZE; col++) {
-            if (grid[row][col] == 1) {
-                int x = scoreboardWidth + col * cellSize; // Calculate x-coordinate
-                int y = row * cellSize;          // Calculate y-coordinate
-                tft.fillRect(x + 5, y + 5, cellSize - 10, cellSize - 10, ILI9341_BLACK); // Treasure
-            }
-        }
-    }
-}
-
 // Function to dig a cell
 void digAction(uint16_t posX, uint16_t posY) {
     int gridX = (posX - scoreboardWidth) / cellSize;
@@ -203,24 +191,25 @@ void digAction(uint16_t posX, uint16_t posY) {
         }
         revealed[gridY][gridX] = true;
 
-        // Reveal the mine or the number of adjacent mines
+        // Reveal the Treasure or the number of adjacent Treasures
         if (grid[gridY][gridX] == 1) {
-            // Game over, mine dug
-            int TreasureX = scoreboardWidth + gridX * cellSize; //Pixelposition for the mine
+            // Game over, Treasure dug
+            int TreasureX = scoreboardWidth + gridX * cellSize; //Pixelposition for the Treasure
             int TreasureY = gridY * cellSize;
-            tft.fillRect(TreasureX + 5, TreasureY + 5, cellSize - 10, cellSize - 10, ILI9341_BLACK); // Draw the mine
+            tft.fillRect(TreasureX + 5, TreasureY + 5, cellSize - 10, cellSize - 10, ILI9341_BLACK); // Draw the Treasure
+            isTreasure = true;  // Set the isTreasure flag to true  
             // Increment player 1 score (if desired action occurs)
-            player1Score++;  // Increment score when the player successfully digs a safe cell
+            player1Score++;  // Increment score when the player successfully digs a cell
         } else {
-            // No mine, dig the cell
+            // No Treasure, dig the cell
             int digX = scoreboardWidth + gridX * cellSize; // Pixelpositiion for the cell
             int digY = gridY * cellSize;
             tft.fillRect(digX + 1, digY + 1, 18, 18, ILI9341_WHITE); // Make the cell white
 
-            // Count the number of adjacent mines
+            // Count the number of adjacent Treasures
             int TreasureCount = countAdjacentTreasures(gridX, gridY);
 
-            // Show the number of adjacent mines, including the number "0"
+            // Show the number of adjacent Treasures, including the number "0"
             tft.setCursor(digX + 6, digY + 3); // Center the number
             tft.setTextSize(1);
             tft.setTextColor(ILI9341_BLACK);

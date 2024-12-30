@@ -3,6 +3,7 @@
 #include "Adafruit_ILI9341.h"
 #include <HardwareSerial.h>
 #include <GameMechanics.h>
+#include "buzzer.h" // Include the buzzer header
 
 #define BAUDRATE 9600
 #define PCF8574A_ADDR 0x21        // I2C address of the PCF8574A
@@ -12,6 +13,7 @@ Adafruit_ILI9341 tft = Adafruit_ILI9341(TFT_CS, TFT_DC);
 volatile uint16_t ticksSinceLastUpdate;
 bool gameStarted = false; // To track if the game has started
 Menu menu(&tft);          // Initialize the menu with the display
+Buzzer myBuzzer; // Create an instance of the Buzzer class
 
 volatile uint32_t lastDigTime = 0;  // Track the last dig time
 uint32_t digCooldown = 35000; // 3 seconds cooldown
@@ -31,6 +33,13 @@ ISR(TIMER0_COMPA_vect)
 {
   ticksSinceLastUpdate++;
   lastDigTime++;
+}
+
+void playCorrectSound(Buzzer& myBuzzer) {
+    myBuzzer.playTone(59, 10);
+    myBuzzer.playTone(440, 15); // A4 note for 200ms
+    myBuzzer.playTone(523, 15); // C5 note for 200ms
+    myBuzzer.playTone(659, 15); // E5 note for 200ms
 }
 
 void timerSetup(void)
@@ -61,6 +70,7 @@ void setup(void)
 
   // Draw the initial menu
   menu.drawMenu();
+  //myBuzzer.testBuzzer(); // Test the buzzer
 }
 
 // Display the cooldown for the digAction on the 7-segment display
@@ -102,7 +112,7 @@ while (1)
         }
         // Display the cooldown for the digAction on the 7-segment display
         displayCooldown(digCooldown - lastDigTime); // Display the remaining time on the 7-segment display
-
+        myBuzzer.update(); // Update the buzzer state
         // Check for Nunchuk button presses
         if (Nunchuk.state.c_button || Nunchuk.state.z_button) {
             // Display the player's grid position when any button is pressed
@@ -110,17 +120,26 @@ while (1)
         }
 
         if (Nunchuk.state.z_button && lastDigTime >= digCooldown) {
+        
             digAction(*posXp, *posYp);
             displayScoreboard(posX, posY);
+            if(isTreasure){ playCorrectSound(myBuzzer);}
+            isTreasure = false; // Reset the isTreasure flag
             lastDigTime = 0;  // Reset last dig time after action
         }
             
-        // Check if the game is over
-        if (isGameOver()) {
-            gameStarted = false; // Stop the game
-            menu.displayEndGameMessage(); // Call the member function to display the end game message
-            menu.drawMenu(); // Redraw the main menu after game over
+      if (isGameOver()) {
+        menu.displayEndGameMessage(); // Call the member function to display the end game message
+        // Wait until a button is pressed to proceed
+        while (true) {
+            Nunchuk.getState(NUNCHUK_ADDRESS); // Update the Nunchuk state
+            if (Nunchuk.state.c_button || Nunchuk.state.z_button) {
+                break; // Exit the loop when a button is pressed
+            }
         }
+        menu.drawMenu(); // Return to the main menu
+        gameStarted = false; // Stop the game
+      }
     }
 }
 return 0;

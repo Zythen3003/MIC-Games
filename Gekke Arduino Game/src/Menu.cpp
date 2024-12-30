@@ -135,15 +135,10 @@ void Menu::displayEndGameMessage() {
 
     tft->setCursor(10, SCREEN_HEIGHT / 2);
     tft->setTextSize(1);
-    tft->print("Returning to Main Menu...");
-
-    delay(3000); // Wait 3 seconds
+    tft->print("Press button to return to Main Menu...");
 
      // Reset the game state to prepare for the next game or menu
-    gameStarted = false;
     player1Score = 0;
     player2Score = 0;
 
-    // Clear the screen to make sure no previous game elements are visible
-    tft->fillScreen(ILI9341_DARKGREEN);
 }
