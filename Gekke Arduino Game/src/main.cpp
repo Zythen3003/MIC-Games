@@ -6,6 +6,7 @@
 
 #define BAUDRATE 9600
 #define PCF8574A_ADDR 0x21        // I2C address of the PCF8574A
+#define DIG_COOLDOWN 35000
 
 // Global variables 
 Adafruit_ILI9341 tft = Adafruit_ILI9341(TFT_CS, TFT_DC);
@@ -13,8 +14,7 @@ volatile uint16_t ticksSinceLastUpdate;
 bool gameStarted = false; // To track if the game has started
 Menu menu(&tft);          // Initialize the menu with the display
 
-volatile uint32_t lastDigTime = 0;  // Track the last dig time
-uint32_t digCooldown = 35000; // 3 seconds cooldown
+volatile uint16_t lastDigTime = 0;  // Track the last dig time
 
 // Segment mapping for digits 0-9 for 7-segment display (common cathode)
 const uint8_t segmentMap[10] = {
@@ -30,7 +30,9 @@ const uint8_t segmentMap[10] = {
 ISR(TIMER0_COMPA_vect)
 {
   ticksSinceLastUpdate++;
-  lastDigTime++;
+  if (lastDigTime < DIG_COOLDOWN) {
+    lastDigTime++;
+  }
 }
 
 void timerSetup(void)
@@ -64,7 +66,7 @@ void setup(void)
 }
 
 // Display the cooldown for the digAction on the 7-segment display
-void displayCooldown(uint32_t remainingTime) {
+void displayCooldown(uint16_t remainingTime) {
     // Convert the remaining time to segments
     int segments = remainingTime / 5000;
     if (segments < 0 || segments > 7) return;  // Only display 0-7 on the 7-segment display
@@ -77,51 +79,42 @@ int main(void)
 {
     setup();
 
-  uint16_t posX = ILI9341_TFTWIDTH / 2;
-  uint16_t posY = ILI9341_TFTHEIGHT / 2;
-  uint16_t *posXp = &posX;
-  uint16_t *posYp = &posY;
+    Serial.println("Start Game");
 
-while (1)
-{
-  
-    if (!gameStarted) {
-        // Handle menu input until a game mode is selected
-        menu.handleMenuInput();
-    } else {
-        // The game logic begins once a mode is selected
-        tft.fillCircle(posX, posY, RADIUS_PLAYER, ILI9341_BLACK);
+    while (1)
+    {
+        if (!gameStarted) {
+            // Handle menu input until a game mode is selected
+            menu.handleMenuInput();
+        } else {
+            // Display the player's grid position and scoreboard
+            movePlayer();
 
-        // Display the player's grid position and scoreboard
-        displayScoreboard(posX, posY);
- 
-        if (ticksSinceLastUpdate > 380) // 100FPS
-        {
-            updateDisplay(posXp, posYp);
-            ticksSinceLastUpdate = 0;
-        }
-        // Display the cooldown for the digAction on the 7-segment display
-        displayCooldown(digCooldown - lastDigTime); // Display the remaining time on the 7-segment display
+            if (ticksSinceLastUpdate > 380) // 100FPS
+            {
+                doGameLoop();
+                ticksSinceLastUpdate = 0;
+            }
 
-        // Check for Nunchuk button presses
-        if (Nunchuk.state.c_button || Nunchuk.state.z_button) {
-            // Display the player's grid position when any button is pressed
-            displayScoreboard(posX, posY);
-        }
+            // Display the cooldown for the digAction on the 7-segment display
+            displayCooldown(DIG_COOLDOWN - lastDigTime); // Display the remaining time on the 7-segment display
 
-        if (Nunchuk.state.z_button && lastDigTime >= digCooldown) {
-            digAction(*posXp, *posYp);
-            displayScoreboard(posX, posY);
-            lastDigTime = 0;  // Reset last dig time after action
-        }
-            
-        // Check if the game is over
-        if (isGameOver()) {
-            gameStarted = false; // Stop the game
-            menu.displayEndGameMessage(); // Call the member function to display the end game message
-            menu.drawMenu(); // Redraw the main menu after game over
+            if (Nunchuk.state.z_button && lastDigTime >= DIG_COOLDOWN) {
+                digAction(true);
+                displayScoreboard();
+                lastDigTime = 0;  // Reset last dig time after action
+            }
+                
+            // Check if the game is over
+            if (isGameOver()) {
+                gameStarted = false; // Stop the game
+                menu.displayEndGameMessage(); // Call the member function to display the end game message
+                menu.drawMenu(); // Redraw the main menu after game over
+            }
+
+            displayScoreboard();
         }
     }
-}
-return 0;
+
+    return 0;
 }

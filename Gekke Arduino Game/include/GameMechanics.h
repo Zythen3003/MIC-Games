@@ -20,16 +20,20 @@ extern Adafruit_ILI9341 tft;
 
 // Other game mechanics function prototypes
 bool isGameOver();
-extern int player1Score;
-extern int player2Score;
+extern uint8_t player1Score;
+extern uint8_t player2Score;
 
 // Function Declarations
 void SetupGrid();
-void displayScoreboard(uint16_t posX, uint16_t posY);
-int countAdjacentTreasures(int gridX, int gridY);
-void updateDisplay(uint16_t *posXp, uint16_t *posYp);
+void displayScoreboard();
+uint8_t countAdjacentTreasures(uint8_t gridX, uint8_t gridY);
+void updateDisplay();
 void generateTreasures();
 void drawTreasures();
-void digAction(uint16_t posX, uint16_t posY);
+void digAction(bool isPlayer1);
+void doGameLoop();
+void movePlayer();
+void gridToDisplayCoords(uint16_t &x, uint16_t &y);
+void updateCell(bool isPlayer1, uint8_t gridX = 255, uint8_t gridY = 255);
 
 #endif
