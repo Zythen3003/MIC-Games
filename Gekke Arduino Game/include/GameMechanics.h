@@ -22,6 +22,8 @@ extern Adafruit_ILI9341 tft;
 bool isGameOver();
 extern uint8_t player1Score;
 extern uint8_t player2Score;
+extern bool isTreasure;
+extern unsigned long gameTime;  // In-game time in seconds
 
 // Function Declarations
 void SetupGrid();

@@ -7,6 +7,7 @@ extern Adafruit_ILI9341 tft;
 
 uint8_t player1Score = 0; // Initialize player1Score
 uint8_t player2Score = 0; // Initialize player2Score
+bool isTreasure = false; // Initialize isTreasure
 
 uint8_t lastGrid1X = -1;  // -1 to indicate initial value
 uint8_t lastGrid1Y = -1;  // -1 to indicate initial value
@@ -28,6 +29,37 @@ uint8_t scoreboardWidth = 80;
 
 bool joystickReset = false;
 
+volatile unsigned long timerMillis = 0;  // Millisecond counter
+unsigned long gameTime = 0;  // In-game time in seconds
+unsigned long lastUpdateTime = 0;  // Store time of the last update for event synchronization
+
+// Timer2 initialization function
+void Timer2_Init() {
+  // Clear Timer2 control registers
+  TCCR2A = 0;    // Normal mode
+  TCCR2B = 0;    // Normal mode
+  
+  // Set Timer2 prescaler to 64 (this gives an interrupt roughly every 4.096ms)
+  TCCR2B |= (1 << CS22);   // Prescaler 64 (CS22 set)
+  TCCR2B |= (1 << CS21);   // Prescaler 64 (CS21 set)
+
+  // Enable Timer2 overflow interrupt
+  TIMSK2 |= (1 << TOIE2);  // Enable Timer2 overflow interrupt
+  
+  // Initialize the timer counter to 0
+  TCNT2 = 0;
+}
+
+// Timer2 overflow interrupt handler
+ISR(TIMER2_OVF_vect) {
+  timerMillis++;  // Increment the millisecond counter on each overflow
+  
+   // Periodically update the game time (every 256ms, i.e., every 0.256 seconds in real time)
+  if (timerMillis % (256) == 0) {  // Update every 256ms (approx. 0.256 real seconds)
+    gameTime++;  // Increment game time in seconds
+  }
+}
+
 void SetupGrid() {
     // Set up the display
     Nunchuk.begin(NUNCHUK_ADDRESS);
@@ -35,7 +67,9 @@ void SetupGrid() {
     tft.fillScreen(ILI9341_WHITE); // Make the screen white
     tft.setTextColor(ILI9341_BLACK);
     tft.setTextSize(2);
-
+    // Set up Timer2 to interrupt every second
+    Timer2_Init();
+    gameTime = 0;  // Reset the game time to 0
     // Draw horizontal lines
     for (int y = 0; y <= SCREEN_HEIGHT; y += cellSize) {
         tft.drawLine(scoreboardWidth, y, SCREEN_WIDTH, y, ILI9341_BLACK);
@@ -65,6 +99,12 @@ void updateDisplay()
 void doGameLoop() {
     updateDisplay();
     displayScoreboard();
+
+    tft.fillRect(5, 220, 70, 40, ILI9341_WHITE); // Clear the "Timer" display
+    tft.setCursor(5, 220);  // Position for "Timer"
+    tft.print("Timer: ");
+    tft.print(gameTime); // Print the elapsed time
+    tft.print("S");
 }
 
 void updateCell(bool isPlayer1, uint8_t gridX = 255, uint8_t gridY = 255) {
@@ -203,28 +243,6 @@ void generateTreasures() {
         }
     }
 }
-
-// Function to display treasures
-// void drawTreasures() {
-//     for (uint8_t row = 0; row < GRID_SIZE; row++) {
-//         for (uint8_t col = 0; col < GRID_SIZE; col++) {
-//             if (grid[row][col] == 1) {
-//                 uint16_t x = col;
-//                 uint16_t y = row;
-//
-//                 gridToDisplayCoords(x, y);
-//
-//                 tft.fillRect(x - (cellSize/2), y - (cellSize/2), cellSize - (cellSize/2), cellSize - (cellSize/2), ILI9341_BLACK); // Treasure
-//             }
-//         }
-//     }
-// }
-
-void gridToDisplayCoords(uint16_t &x, uint16_t &y) {
-    x = scoreboardWidth + ((x+1) * cellSize) - (cellSize / 2);
-    y = (y+1) * cellSize - (cellSize / 2);
-}
-
 // Function to dig a cell
 void digAction(bool isPlayer1) {
     uint8_t x = (isPlayer1 ? player1X : player2X);
@@ -279,7 +297,6 @@ void displayScoreboard() {
     tft.setCursor(10, 175);
     tft.print("Y: ");
     tft.print(player1Y + 1); // Add 1 to match the grid numbering (1-based)
-
     // Clear previous grid position if it has changed
     tft.fillRect(55, 55, 25, 40, ILI9341_WHITE); // Clear the player 1 and player 2 scores
 
@@ -292,17 +309,6 @@ void displayScoreboard() {
 }
 
 bool isGameOver() {
-    // Check if all treasures have been revealed
-    // int revealedTreasures = 0;
-    // for (int row = 0; row < GRID_SIZE; row++) {
-    //     for (int col = 0; col < GRID_SIZE; col++) {
-    //         if (grid[row][col] == 1 && revealed[row][col]) {
-    //             revealedTreasures++;
-    //         }
-    //     }
-    // }
-    // return revealedTreasures == TREASURE_COUNT;
-
     if ((player1Score + player2Score) == TREASURE_COUNT)
         return true;
 
