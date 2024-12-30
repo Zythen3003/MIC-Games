@@ -10,6 +10,7 @@
 
 // Global variables 
 Adafruit_ILI9341 tft = Adafruit_ILI9341(TFT_CS, TFT_DC);
+Adafruit_FT6206 ts = Adafruit_FT6206();
 volatile uint16_t ticksSinceLastUpdate;
 bool gameStarted = false; // To track if the game has started
 Menu menu(&tft);          // Initialize the menu with the display
@@ -59,6 +60,8 @@ void setup(void)
   tft.setRotation(1); // Adjust screen orientation to landscape mode
   Serial.begin(9600);
 
+  ts.begin();
+
   // Initialize the Nunchuk
   Wire.begin();
   Nunchuk.begin(NUNCHUK_ADDRESS);
@@ -98,6 +101,13 @@ while (1)
     if (!gameStarted) {
         // Handle menu input until a game mode is selected
         menu.handleMenuInput();
+
+        if (ts.touched()) {
+            // Retrieve touch data
+            TS_Point tPoint = ts.getPoint();
+
+            menu.handleTouchInput(tPoint);
+        }
     } else {
         // The game logic begins once a mode is selected
         tft.fillCircle(posX, posY, RADIUS_PLAYER, ILI9341_BLACK);

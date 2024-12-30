@@ -1,6 +1,7 @@
 #include "menu.h"
 #include "Nunchuk.h"
 #include "GameMechanics.h"
+
 void Menu::handleMenuInput() {
     if (Nunchuk.getState(NUNCHUK_ADDRESS)) {
         int joyX = Nunchuk.state.joy_x_axis;
@@ -18,20 +19,54 @@ void Menu::handleMenuInput() {
 
             if (selectedOption == 0) { // Singleplayer selected
                 Serial.println("Singleplayer selected");
-                gameStarted = true; // Mark game as started
-                SetupGrid(); // Call SetupGrid() for the game
-                // Add game logic for singleplayer mode here
+                startSingleplayer();
             } else if (selectedOption == 1) { // Multiplayer selected
                 Serial.println("Multiplayer selected");
-                gameStarted = false; // Mark game as started
-                tft->fillScreen(ILI9341_DARKGREEN);
-                tft->setTextColor(ILI9341_BLACK);
-                tft->setTextSize(3);
-                tft->setCursor(30, 20);
-                tft->println("Multiplayer mode");
+                startMultiplayer();
                 // Add multiplayer setup code here
             }
         }
+    }
+}
+
+void Menu::startSingleplayer() {
+    gameStarted = true; // Mark game as started
+    SetupGrid(); // Call SetupGrid() for the game
+    // Add game logic for singleplayer mode here
+}
+
+void Menu::startMultiplayer() {
+    gameStarted = false; // Mark game as started
+    tft->fillScreen(ILI9341_DARKGREEN);
+    tft->setTextColor(ILI9341_BLACK);
+    tft->setTextSize(3);
+    tft->setCursor(30, 20);
+    tft->println("Multiplayer mode");
+}
+
+bool isTouchInRect(int touchX, int touchY, int rectX, int rectY, int rectWidth, int rectHeight) {
+  return (touchX >= rectX && touchX <= (rectX + rectWidth) &&
+          touchY >= rectY && touchY <= (rectY + rectHeight));
+}
+
+void translateTouchToDisplay(int &touchX, int &touchY) {
+    int tempY = touchY;
+    touchY = touchX;   // Touchscreen Y to display X
+    touchX = map(tempY, 0, SCREEN_WIDTH, SCREEN_WIDTH, 0);
+}
+
+void Menu::handleTouchInput(TS_Point tPoint) {
+    int touchX = tPoint.x;  // Map Y (raw) to X (display)
+    int touchY = tPoint.y; // Map X (raw) to Y (display)
+
+    translateTouchToDisplay(touchX, touchY);
+    
+    if (isTouchInRect(touchX, touchY, 20, 100, 130, 50)) {
+        startSingleplayer();
+    }
+
+    if (isTouchInRect(touchX, touchY, 160, 100, 130, 50)) {
+        startMultiplayer();
     }
 }
 
