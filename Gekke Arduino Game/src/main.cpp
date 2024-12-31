@@ -142,6 +142,7 @@ int main(void)
 
       if (isGameOver())
       {
+        tft.fillScreen(ILI9341_DARKGREEN);
         menu.displayEndGameMessage(); // Call the member function to display the end game message
         // Wait until a button is pressed to proceed
         while (true)
@@ -152,7 +153,7 @@ int main(void)
             break; // Exit the loop when a button is pressed
           }
         }
-
+        tft.fillScreen(ILI9341_DARKGREEN);
         myBuzzer.update();   // Update the buzzer state
         menu.drawMenu();     // Return to the main menu
         gameStarted = false; // Stop the game

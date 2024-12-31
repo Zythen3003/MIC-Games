@@ -361,7 +361,10 @@ void updateScore()
 bool isGameOver()
 {
     if ((player1Score + player2Score) == TREASURE_COUNT)
+    {
+        // Stop Timer2
+        TIMSK2 &= ~(1 << TOIE2); // Disable Timer2 overflow interrupt
         return true;
-
+    }
     return false;
 }
