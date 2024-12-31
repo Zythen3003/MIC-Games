@@ -28,8 +28,10 @@ extern unsigned long gameTime;  // In-game time in seconds
 // Function Declarations
 void SetupGrid();
 void displayScoreboard();
+void updatePosition();
+void updateTimer();
+void updateScore();
 uint8_t countAdjacentTreasures(uint8_t gridX, uint8_t gridY);
-void updateDisplay();
 void generateTreasures();
 void drawTreasures();
 void digAction(bool isPlayer1);

@@ -7,60 +7,57 @@ extern Adafruit_ILI9341 tft;
 
 uint8_t player1Score = 0; // Initialize player1Score
 uint8_t player2Score = 0; // Initialize player2Score
-bool isTreasure = false; // Initialize isTreasure
-
-uint8_t lastGrid1X = -1;  // -1 to indicate initial value
-uint8_t lastGrid1Y = -1;  // -1 to indicate initial value
-uint8_t lastScorePlayer1 = -1;
-
-// uint8_t lastGrid2X = -1;  // -1 to indicate initial value
-// uint8_t lastGrid2Y = -1;  // -1 to indicate initial value
-// uint8_t lastScorePlayer2 = -1;
+bool isTreasure = false;  // Initialize isTreasure
 
 uint8_t player1X = 0;
 uint8_t player1Y = 0;
 uint8_t player2X;
 uint8_t player2Y;
 
-uint8_t grid[GRID_SIZE][GRID_SIZE]; // Grid to hold Treasures
+uint8_t grid[GRID_SIZE][GRID_SIZE];  // Grid to hold Treasures
 bool revealed[GRID_SIZE][GRID_SIZE]; // Keeps track of whether a cell has been dug
 uint8_t cellSize = SCREEN_HEIGHT / GRID_SIZE;
 uint8_t scoreboardWidth = 80;
 
 bool joystickReset = false;
 
-volatile unsigned long timerMillis = 0;  // Millisecond counter
-unsigned long gameTime = 0;  // In-game time in seconds
-unsigned long lastUpdateTime = 0;  // Store time of the last update for event synchronization
+volatile unsigned long timerMillis = 0; // Millisecond counter
+unsigned long gameTime = 0;             // In-game time in seconds
+unsigned long lastUpdateTime = 0;       // Store time of the last update for event synchronization
 
 // Timer2 initialization function
-void Timer2_Init() {
-  // Clear Timer2 control registers
-  TCCR2A = 0;    // Normal mode
-  TCCR2B = 0;    // Normal mode
-  
-  // Set Timer2 prescaler to 64 (this gives an interrupt roughly every 4.096ms)
-  TCCR2B |= (1 << CS22);   // Prescaler 64 (CS22 set)
-  TCCR2B |= (1 << CS21);   // Prescaler 64 (CS21 set)
+void Timer2_Init()
+{
+    // Clear Timer2 control registers
+    TCCR2A = 0; // Normal mode
+    TCCR2B = 0; // Normal mode
 
-  // Enable Timer2 overflow interrupt
-  TIMSK2 |= (1 << TOIE2);  // Enable Timer2 overflow interrupt
-  
-  // Initialize the timer counter to 0
-  TCNT2 = 0;
+    // Set Timer2 prescaler to 64 (this gives an interrupt roughly every 4.096ms)
+    TCCR2B |= (1 << CS22); // Prescaler 64 (CS22 set)
+    TCCR2B |= (1 << CS21); // Prescaler 64 (CS21 set)
+
+    // Enable Timer2 overflow interrupt
+    TIMSK2 |= (1 << TOIE2); // Enable Timer2 overflow interrupt
+
+    // Initialize the timer counter to 0
+    TCNT2 = 0;
 }
 
 // Timer2 overflow interrupt handler
-ISR(TIMER2_OVF_vect) {
-  timerMillis++;  // Increment the millisecond counter on each overflow
-  
-   // Periodically update the game time (every 256ms, i.e., every 0.256 seconds in real time)
-  if (timerMillis % (256) == 0) {  // Update every 256ms (approx. 0.256 real seconds)
-    gameTime++;  // Increment game time in seconds
-  }
+ISR(TIMER2_OVF_vect)
+{
+    timerMillis++; // Increment the millisecond counter on each overflow
+
+    // Periodically update the game time (every 256ms, i.e., every 0.256 seconds in real time)
+    if (timerMillis % (256) == 0)
+    {               // Update every 256ms (approx. 0.256 real seconds)
+        gameTime++; // Increment game time in seconds
+        updateTimer();
+    }
 }
 
-void SetupGrid() {
+void SetupGrid()
+{
     // Set up the display
     Nunchuk.begin(NUNCHUK_ADDRESS);
     tft.setRotation(1);
@@ -69,47 +66,42 @@ void SetupGrid() {
     tft.setTextSize(2);
     // Set up Timer2 to interrupt every second
     Timer2_Init();
-    gameTime = 0;  // Reset the game time to 0
+    gameTime = 0; // Reset the game time to 0
+
     // Draw horizontal lines
-    for (int y = 0; y <= SCREEN_HEIGHT; y += cellSize) {
+    for (int y = 0; y <= SCREEN_HEIGHT; y += cellSize)
+    {
         tft.drawLine(scoreboardWidth, y, SCREEN_WIDTH, y, ILI9341_BLACK);
     }
 
     // Draw vertical lines (skip the first 4 columns for the scoreboard)
-    for (int x = scoreboardWidth; x <= SCREEN_WIDTH; x += cellSize) {
+    for (int x = scoreboardWidth; x <= SCREEN_WIDTH; x += cellSize)
+    {
         tft.drawLine(x, 0, x, SCREEN_HEIGHT, ILI9341_BLACK);
     }
 
     // Generate Treasures
     generateTreasures();
-}
-
-
-void updateDisplay()
-{  
-    updateCell(true);
-    // MULTIPLAYER moet nog verder gemaakt worden
-
-    if (false) {
-        updateCell(false);
-    }
-    
-}
-
-void doGameLoop() {
-    updateDisplay();
     displayScoreboard();
-
-    tft.fillRect(5, 220, 70, 40, ILI9341_WHITE); // Clear the "Timer" display
-    tft.setCursor(5, 220);  // Position for "Timer"
-    tft.print("Timer: ");
-    tft.print(gameTime); // Print the elapsed time
-    tft.print("S");
+    updateCell(true);
 }
 
-void updateCell(bool isPlayer1, uint8_t gridX = 255, uint8_t gridY = 255) {
+void doGameLoop()
+{
+    // updateCell(true);
+
+    // // MULTIPLAYER moet nog verder gemaakt worden
+    // if (false)
+    // {
+    //     updateCell(false);
+    // }
+}
+
+void updateCell(bool isPlayer1, uint8_t gridX = 255, uint8_t gridY = 255)
+{
     bool isPlayerCell = true;
-    if (gridX != 255 || gridY != 255) {
+    if (gridX != 255 || gridY != 255)
+    {
         isPlayerCell = false;
     }
 
@@ -121,22 +113,30 @@ void updateCell(bool isPlayer1, uint8_t gridX = 255, uint8_t gridY = 255) {
 
     gridToDisplayCoords(x, y);
 
-    if (isPlayerCell) {
+    if (isPlayerCell)
+    {
         tft.fillCircle(x, y, RADIUS_PLAYER, ILI9341_BLUE);
-    } else {
-        tft.fillRect((x - (cellSize/2))+1, (y - (cellSize/2))+1, cellSize-2, cellSize-2, ILI9341_WHITE); // Treasure
+    }
+    else
+    {
+        tft.fillRect((x - (cellSize / 2)) + 1, (y - (cellSize / 2)) + 1, cellSize - 2, cellSize - 2, ILI9341_WHITE); // Treasure
     }
 
     // If the cell is revealed, show the number of adjacent Treasures or the Treasure
-    if (revealed[gridY][gridX]) {
-        if (grid[gridY][gridX] == 1) {
+    if (revealed[gridY][gridX])
+    {
+        if (grid[gridY][gridX] == 1)
+        {
             // Treasure found
-            tft.fillRect(x - (cellSize/4), y - (cellSize/4), cellSize - (cellSize/2), cellSize - (cellSize/2), ILI9341_BLACK); // Treasure
-        } else {
+            tft.fillRect(x - (cellSize / 4), y - (cellSize / 4), cellSize - (cellSize / 2), cellSize - (cellSize / 2), ILI9341_BLACK); // Treasure
+        }
+        else
+        {
             // No treasure found
-            tft.fillRect(x - (cellSize/4), y - (cellSize/4), cellSize - (cellSize/2), cellSize - (cellSize/2), ILI9341_WHITE);
+            tft.fillRect(x - (cellSize / 4), y - (cellSize / 4), cellSize - (cellSize / 2), cellSize - (cellSize / 2), ILI9341_WHITE);
 
-            if (isPlayerCell) {
+            if (isPlayerCell)
+            {
                 tft.fillCircle(x, y, RADIUS_PLAYER, ILI9341_BLUE);
             }
 
@@ -144,7 +144,7 @@ void updateCell(bool isPlayer1, uint8_t gridX = 255, uint8_t gridY = 255) {
             uint8_t TreasureCount = countAdjacentTreasures(gridX, gridY);
 
             // Show the number of adjacent mines, including the number "0"
-            tft.setCursor(x - (cellSize/4), y - (cellSize/4)); // Center the number
+            tft.setCursor(x - (cellSize / 4), y - (cellSize / 4)); // Center the number
             tft.setTextSize(1);
             tft.setTextColor(ILI9341_BLACK);
             tft.print(TreasureCount); // Always print the number, even if it is 0
@@ -152,67 +152,84 @@ void updateCell(bool isPlayer1, uint8_t gridX = 255, uint8_t gridY = 255) {
     }
 }
 
+void gridToDisplayCoords(uint16_t &x, uint16_t &y)
+{
+    x = scoreboardWidth + ((x + 1) * cellSize) - (cellSize / 2);
+    y = (y + 1) * cellSize - (cellSize / 2);
+}
 
-void movePlayer() {
+void movePlayer()
+{
     // Check if the joystick has returned to the center
     uint8_t joystickThreshold = 60;
     uint8_t centre = 128;
 
     Nunchuk.getState(NUNCHUK_ADDRESS);
-    // Serial.print("X: ");
-    // Serial.print(Nunchuk.state.joy_x_axis);
-    // Serial.print(" Y: ");
-    // Serial.println(Nunchuk.state.joy_y_axis);
 
-    if (abs(Nunchuk.state.joy_x_axis - centre) < joystickThreshold && abs(Nunchuk.state.joy_y_axis - centre) < joystickThreshold) {
+    if (abs(Nunchuk.state.joy_x_axis - centre) < joystickThreshold && abs(Nunchuk.state.joy_y_axis - centre) < joystickThreshold)
+    {
         joystickReset = true;
-    }
-
-    // Clear prev cell
-    updateCell(true, player1X, player1Y);
+    }    
 
     // Only move if the joystick has reset to center
-    if (joystickReset) {
+    if (joystickReset)
+    {
         // Move up
-        if (Nunchuk.state.joy_y_axis > centre + joystickThreshold && player1Y != 0) {
+        if (Nunchuk.state.joy_y_axis > centre + joystickThreshold && player1Y != 0)
+        {
+            updateCell(true, player1X, player1Y);
             player1Y -= 1;
             joystickReset = false;
         }
         // Move down
-        else if (Nunchuk.state.joy_y_axis < centre - joystickThreshold && player1Y != GRID_SIZE-1) {
+        else if (Nunchuk.state.joy_y_axis < centre - joystickThreshold && player1Y != GRID_SIZE - 1)
+        {
+            updateCell(true, player1X, player1Y);
             player1Y += 1;
             joystickReset = false;
         }
         // Move left
-        else if (Nunchuk.state.joy_x_axis < centre - joystickThreshold && player1X != 0) {
+        else if (Nunchuk.state.joy_x_axis < centre - joystickThreshold && player1X != 0)
+        {
+            updateCell(true, player1X, player1Y);
             player1X -= 1;
             joystickReset = false;
         }
         // Move right
-        else if (Nunchuk.state.joy_x_axis > centre + joystickThreshold && player1X != GRID_SIZE-1) {
+        else if (Nunchuk.state.joy_x_axis > centre + joystickThreshold && player1X != GRID_SIZE - 1)
+        {
+            updateCell(true, player1X, player1Y);
             player1X += 1;
             joystickReset = false;
         }
 
-        updateDisplay();
+        if (!joystickReset) {
+            updatePosition();
+            updateCell(true);
+        }
     }
 }
 
-uint8_t countAdjacentTreasures(uint8_t gridX, uint8_t gridY) {
+uint8_t countAdjacentTreasures(uint8_t gridX, uint8_t gridY)
+{
     uint8_t count = 0;
 
     // Walk through all adjacent cells
-    for (int8_t offsetX = -1; offsetX <= 1; offsetX++) {
-        for (int8_t offsetY = -1; offsetY <= 1; offsetY++) {
+    for (int8_t offsetX = -1; offsetX <= 1; offsetX++)
+    {
+        for (int8_t offsetY = -1; offsetY <= 1; offsetY++)
+        {
             // calculate the coordinates of the neighbor cell
             uint8_t neighborX = gridX + offsetX;
             uint8_t neighborY = gridY + offsetY;
 
             // Check if the neighbor cell is within the grid
             if (neighborX >= 0 && neighborX < GRID_SIZE &&
-                neighborY >= 0 && neighborY < GRID_SIZE) {
+                neighborY >= 0 && neighborY < GRID_SIZE)
+            {
                 // Only count Treasures
-                if (grid[neighborY][neighborX] == 1) {
+                if (grid[neighborY][neighborX] == 1)
+                {
                     count++;
                 }
             }
@@ -222,69 +239,86 @@ uint8_t countAdjacentTreasures(uint8_t gridX, uint8_t gridY) {
     return count; // return all adjacent Treasures
 }
 
-
 // Function to generate treasures
-void generateTreasures() {
-    for (int row = 0; row < GRID_SIZE; row++) {
-        for (int col = 0; col < GRID_SIZE; col++) {
-            grid[row][col] = 0;      // no Treasure
+void generateTreasures()
+{
+    for (int row = 0; row < GRID_SIZE; row++)
+    {
+        for (int col = 0; col < GRID_SIZE; col++)
+        {
+            grid[row][col] = 0;         // no Treasure
             revealed[row][col] = false; // row and column are not revealed
         }
     }
 
     int TreasuresPlaced = 0;
-    while (TreasuresPlaced < TREASURE_COUNT) {
+    while (TreasuresPlaced < TREASURE_COUNT)
+    {
         int randomRow = random(0, GRID_SIZE);
         int randomCol = random(0, GRID_SIZE);
 
-        if (grid[randomRow][randomCol] == 0) {
+        if (grid[randomRow][randomCol] == 0)
+        {
             grid[randomRow][randomCol] = 1; // Place Treasure
             TreasuresPlaced++;
         }
     }
 }
+
 // Function to dig a cell
-void digAction(bool isPlayer1) {
+void digAction(bool isPlayer1)
+{
     uint8_t x = (isPlayer1 ? player1X : player2X);
     uint8_t y = (isPlayer1 ? player1Y : player2Y);
 
     // Check if within the grid and not revealed yet
-    if (x >= 0 && x < GRID_SIZE && y >= 0 && y < GRID_SIZE) {
+    if (x >= 0 && x < GRID_SIZE && y >= 0 && y < GRID_SIZE)
+    {
         if (revealed[y][x])
             return;
 
         revealed[y][x] = true;
 
         // Reveal the mine or the number of adjacent mines
-        if (grid[y][x] == 1) {
+        if (grid[y][x] == 1)
+        {
             // Increment score when the player successfully digs a safe cell
             if (isPlayer1)
+            {
                 player1Score++;
+                isTreasure = true;
+            }
             else
+            {
                 player2Score++;
+            }
 
-            displayScoreboard();
+            updateScore();
         }
+
+        updateCell(isPlayer1);
     }
 }
 
-void displayScoreboard() {
+void displayScoreboard()
+{
     // Display the scoreboard title and static information (this only needs to be done once)
-    tft.setCursor(10, 45);  // Position for the "Scoreboard" title
+    tft.setCursor(10, 45); // Position for the "Scoreboard" title
     tft.setTextSize(1);
     tft.print("Scoreboard");
 
-    tft.setCursor(5, 65);  // Position for "Player 1:"
-    tft.print("Player 1: "); // Print the score of Player 1
-    tft.print(player1Score); // Print the score of Player 1
-
-    tft.setCursor(5, 85);  // Position for "Player 2:"
-    tft.print("Player 2:");
-
-    tft.setCursor(10, 115);  // Position for "Current"
+    tft.setCursor(10, 115); // Position for "Current"
     tft.print("Current ");
     tft.setCursor(10, 135); // Position for "Position"
     tft.print("Position");
+
+    updateScore();
+    updatePosition();
+    updateTimer();
+}
+
+void updatePosition() {
+    tft.setTextSize(1);
 
     // Clear previous grid position if it has changed
     tft.fillRect(15, 155, 25, 40, ILI9341_WHITE); // Clear the "X:" and "Y:" values
@@ -297,18 +331,35 @@ void displayScoreboard() {
     tft.setCursor(10, 175);
     tft.print("Y: ");
     tft.print(player1Y + 1); // Add 1 to match the grid numbering (1-based)
+}
+
+void updateTimer()
+{
+    tft.setTextSize(1);
+    tft.fillRect(5, 220, 70, 40, ILI9341_WHITE); // Clear the "Timer" display
+    tft.setCursor(5, 220);                       // Position for "Timer"
+    tft.print("Timer: ");
+    tft.print(gameTime); // Print the elapsed time
+    tft.print("S");
+}
+
+void updateScore()
+{
+    tft.setTextSize(1);
+
     // Clear previous grid position if it has changed
     tft.fillRect(55, 55, 25, 40, ILI9341_WHITE); // Clear the player 1 and player 2 scores
-
-    tft.setCursor(5, 65);  // Position for "Player 1:"
+    tft.setCursor(5, 65);    // Position for "Player 1:"
     tft.print("Player 1: "); // Print the score of Player 1
     tft.print(player1Score); // Print the score of Player 1
 
-    tft.setCursor(5, 85);  // Position for "Player 2:"
-    tft.print("Player 2:");
+    tft.setCursor(5, 85); // Position for "Player 2:"
+    tft.print("Player 2: ");
+    tft.print(player2Score); // Print the score of Player 2
 }
 
-bool isGameOver() {
+bool isGameOver()
+{
     if ((player1Score + player2Score) == TREASURE_COUNT)
         return true;
 
