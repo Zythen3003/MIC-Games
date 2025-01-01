@@ -8,7 +8,7 @@
 #define BAUDRATE 9600
 #define PCF8574A_ADDR 0x21 // I2C address of the PCF8574A
 #define DIG_COOLDOWN 35000
-
+void playNonBlockingCorrectSound(Buzzer &myBuzzer);
 // Global variables
 Adafruit_ILI9341 tft = Adafruit_ILI9341(TFT_CS, TFT_DC);
 Adafruit_FT6206 ts = Adafruit_FT6206();
@@ -77,6 +77,7 @@ void setup(void)
   // Draw the initial menu
   menu.drawMenu();
   // myBuzzer.testBuzzer(); // Test the buzzer
+
 }
 
 // Display the cooldown for the digAction on the 7-segment display
@@ -134,15 +135,17 @@ int main(void)
         updateScore();
 
         if (isTreasure)
-          playCorrectSound(myBuzzer);
-
-        isTreasure = false; // Reset the isTreasure flag
+          {
+            playNonBlockingCorrectSound(myBuzzer); // Non-blocking sound playback
+            isTreasure = false;                    // Reset the isTreasure flag
+          }
         lastDigTime = 0;    // Reset last dig time after action
       }
 
       if (isGameOver())
       {
         tft.fillScreen(ILI9341_DARKGREEN);
+        myBuzzer.update(); // Continuously update the buzzer state
         menu.displayEndGameMessage(); // Call the member function to display the end game message
         // Wait until a button is pressed to proceed
         while (true)
@@ -162,4 +165,45 @@ int main(void)
   }
 
   return 0;
+}
+
+
+void playNonBlockingCorrectSound(Buzzer &myBuzzer) { // Plays the melody non-blocking.
+  static int soundStep = 0; // Tracks the current tone in the sequence.
+  static unsigned long toneStartTick = 0; // Stores the starting time of the current tone.
+  static bool isPlayingMelody = false; // Flag to indicate if the melody is currently playing.
+
+  // Define the tones with their frequencies and durations.
+  const int tones[][2] = {
+    {59, 10}, 
+    {324, 15},
+    {440, 15},
+    {523, 15},
+    {625, 15}
+  };
+
+  // If the melody is not currently playing
+  if (!isPlayingMelody) { 
+    // Start playing the melody.
+    isPlayingMelody = true;
+    // Record the starting time of the current tone. 
+    toneStartTick = TCNT1; 
+
+    // Play the current tone. 
+    myBuzzer.playTone(tones[soundStep][0], tones[soundStep][1]);
+
+    // Move to the next tone in the sequence. 
+    soundStep = (soundStep + 1) % 5; 
+  }
+
+  // Check if the current tone has finished playing.
+  if ((TCNT1 - toneStartTick) >= tones[soundStep][1] && isPlayingMelody) { 
+    // Stop playing the melody.
+    isPlayingMelody = false; 
+    // Record the starting time of the next tone. 
+    toneStartTick = TCNT1; 
+  }
+
+  // Update the buzzer state.
+  myBuzzer.update(); 
 }
