@@ -9,8 +9,8 @@ class Menu {
 public:
     Menu(Adafruit_ILI9341* tft);
 
-    void handleMenuInput(); // Handles menu input
-    void handleTouchInput(TS_Point tPoint);
+    void handleMenuInput(int ticksSinceLastUpdate); // Handles menu input
+    void handleTouchInput(TS_Point tPoint, int ticksSinceLastUpdate);
     void displayEndGameMessage(); // Display the end game message
     void drawMenu(); // Draws the entire menu
     void updateSelection(int direction); // Updates the selection (-1 for up, 1 for down)
@@ -31,7 +31,7 @@ private:
     int multiPlayerHighScoreAddress = 15;
     int previousSelectedOption;  // The previous selected option (for redrawing)
     
-    void startSingleplayer();
+    void startSingleplayer(int ticksSinceLastUpdate);
     void startMultiplayer();
 };
 

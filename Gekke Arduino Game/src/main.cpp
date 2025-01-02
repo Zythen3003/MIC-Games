@@ -144,14 +144,14 @@ int main(void)
     if (!gameStarted)
     {
       // Handle menu input until a game mode is selected
-      menu.handleMenuInput();
+      menu.handleMenuInput(ticksSinceLastUpdate);
 
       if (ts.touched())
       {
         // Retrieve touch data
         TS_Point tPoint = ts.getPoint();
 
-        menu.handleTouchInput(tPoint);
+        menu.handleTouchInput(tPoint, ticksSinceLastUpdate);
       }
     }
     else

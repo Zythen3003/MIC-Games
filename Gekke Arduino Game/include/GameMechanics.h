@@ -26,13 +26,13 @@ extern bool isTreasure;
 extern unsigned long gameTime;  // In-game time in seconds
 
 // Function Declarations
-void SetupGrid();
+void SetupGrid(int ticksSinceLastUpdate);
 void displayScoreboard();
 void updatePosition();
 void updateTimer();
 void updateScore();
 uint8_t countAdjacentTreasures(uint8_t gridX, uint8_t gridY);
-void generateTreasures();
+void generateTreasures(int ticksSinceLastUpdate);
 void drawTreasures();
 void digAction(bool isPlayer1);
 void doGameLoop();

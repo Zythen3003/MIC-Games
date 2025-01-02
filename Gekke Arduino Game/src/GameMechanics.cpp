@@ -1,4 +1,5 @@
 #include <stdint.h>
+#include <stdlib.h>
 #include <GameMechanics.h>
 #include <HardwareSerial.h>
 
@@ -56,7 +57,7 @@ ISR(TIMER2_OVF_vect)
     }
 }
 
-void SetupGrid()
+void SetupGrid(int ticksSinceLastUpdate)
 {
     // Set up the display
     Nunchuk.begin(NUNCHUK_ADDRESS);
@@ -81,7 +82,7 @@ void SetupGrid()
     }
 
     // Generate Treasures
-    generateTreasures();
+    generateTreasures(ticksSinceLastUpdate);
     displayScoreboard();
     updateCell(true);
 }
@@ -240,8 +241,11 @@ uint8_t countAdjacentTreasures(uint8_t gridX, uint8_t gridY)
 }
 
 // Function to generate treasures
-void generateTreasures()
+void generateTreasures(int ticksSinceLastUpdate)
 {
+    srand(ticksSinceLastUpdate); // Use the current time as a seed for the random number generator
+
+    // Clear the grid and set all tiles as unrevealed
     for (int row = 0; row < GRID_SIZE; row++)
     {
         for (int col = 0; col < GRID_SIZE; col++)
@@ -254,10 +258,12 @@ void generateTreasures()
     int TreasuresPlaced = 0;
     while (TreasuresPlaced < TREASURE_COUNT)
     {
-        int randomRow = random(0, GRID_SIZE);
-        int randomCol = random(0, GRID_SIZE);
+        // Generate random row and column
+        int randomRow = rand() % GRID_SIZE;
+        int randomCol = rand() % GRID_SIZE;
 
-        if (grid[randomRow][randomCol] == 0)
+        // Use a random number to decide whether to place a treasure
+        if ((randomRow + randomCol + rand()) % 3 == 0 && grid[randomRow][randomCol] == 0)
         {
             grid[randomRow][randomCol] = 1; // Place Treasure
             TreasuresPlaced++;
