@@ -8,7 +8,7 @@
 #define BAUDRATE 9600
 #define PCF8574A_ADDR 0x21 // I2C address of the PCF8574A
 #define DIG_COOLDOWN 35000
-void playNonBlockingCorrectSound(Buzzer &myBuzzer);
+
 // Global variables
 Adafruit_ILI9341 tft = Adafruit_ILI9341(TFT_CS, TFT_DC);
 Adafruit_FT6206 ts = Adafruit_FT6206();
@@ -55,6 +55,58 @@ void timerSetup(void)
   TCCR0B |= (1 << CS01);   // Prescaler of 8
 }
 
+// Display the cooldown for the digAction on the 7-segment display
+void displayCooldown(uint16_t remainingTime)
+{
+  // Convert the remaining time to segments
+  int segments = remainingTime / 5000;
+  if (segments < 0 || segments > 7)
+    return; // Only display 0-7 on the 7-segment display
+  Wire.beginTransmission(PCF8574A_ADDR);
+  Wire.write(~segmentMap[segments]); // Display the remaining time on the 7-segment display
+  Wire.endTransmission();
+}
+
+void playNonBlockingCorrectSound(Buzzer &myBuzzer) { // Plays the melody non-blocking.
+  static int soundStep = 0; // Tracks the current tone in the sequence.
+  static unsigned long toneStartTick = 0; // Stores the starting time of the current tone.
+  static bool isPlayingMelody = false; // Flag to indicate if the melody is currently playing.
+
+  // Define the tones with their frequencies and durations.
+  const int tones[][2] = {
+    {59, 10}, 
+    {324, 15},
+    {440, 15},
+    {523, 15},
+    {625, 15}
+  };
+
+  // If the melody is not currently playing
+  if (!isPlayingMelody) { 
+    // Start playing the melody.
+    isPlayingMelody = true;
+    // Record the starting time of the current tone. 
+    toneStartTick = TCNT1; 
+
+    // Play the current tone. 
+    myBuzzer.playTone(tones[soundStep][0], tones[soundStep][1]);
+
+    // Move to the next tone in the sequence. 
+    soundStep = (soundStep + 1) % 5; 
+  }
+
+  // Check if the current tone has finished playing.
+  if ((TCNT1 - toneStartTick) >= tones[soundStep][1] && isPlayingMelody) { 
+    // Stop playing the melody.
+    isPlayingMelody = false; 
+    // Record the starting time of the next tone. 
+    toneStartTick = TCNT1; 
+  }
+
+  // Update the buzzer state.
+  myBuzzer.update(); 
+}
+
 void setup(void)
 {
   timerSetup();
@@ -78,18 +130,6 @@ void setup(void)
   menu.drawMenu();
   // myBuzzer.testBuzzer(); // Test the buzzer
 
-}
-
-// Display the cooldown for the digAction on the 7-segment display
-void displayCooldown(uint16_t remainingTime)
-{
-  // Convert the remaining time to segments
-  int segments = remainingTime / 5000;
-  if (segments < 0 || segments > 7)
-    return; // Only display 0-7 on the 7-segment display
-  Wire.beginTransmission(PCF8574A_ADDR);
-  Wire.write(~segmentMap[segments]); // Display the remaining time on the 7-segment display
-  Wire.endTransmission();
 }
 
 int main(void)
@@ -165,45 +205,4 @@ int main(void)
   }
 
   return 0;
-}
-
-
-void playNonBlockingCorrectSound(Buzzer &myBuzzer) { // Plays the melody non-blocking.
-  static int soundStep = 0; // Tracks the current tone in the sequence.
-  static unsigned long toneStartTick = 0; // Stores the starting time of the current tone.
-  static bool isPlayingMelody = false; // Flag to indicate if the melody is currently playing.
-
-  // Define the tones with their frequencies and durations.
-  const int tones[][2] = {
-    {59, 10}, 
-    {324, 15},
-    {440, 15},
-    {523, 15},
-    {625, 15}
-  };
-
-  // If the melody is not currently playing
-  if (!isPlayingMelody) { 
-    // Start playing the melody.
-    isPlayingMelody = true;
-    // Record the starting time of the current tone. 
-    toneStartTick = TCNT1; 
-
-    // Play the current tone. 
-    myBuzzer.playTone(tones[soundStep][0], tones[soundStep][1]);
-
-    // Move to the next tone in the sequence. 
-    soundStep = (soundStep + 1) % 5; 
-  }
-
-  // Check if the current tone has finished playing.
-  if ((TCNT1 - toneStartTick) >= tones[soundStep][1] && isPlayingMelody) { 
-    // Stop playing the melody.
-    isPlayingMelody = false; 
-    // Record the starting time of the next tone. 
-    toneStartTick = TCNT1; 
-  }
-
-  // Update the buzzer state.
-  myBuzzer.update(); 
 }
