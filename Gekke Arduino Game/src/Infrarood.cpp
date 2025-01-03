@@ -2,7 +2,6 @@
 #include <avr/io.h>
 #include <avr/interrupt.h>
 
-#define BUFFER_SIZE1 8
 // Variabele beschikbaar maken voor main
 uint8_t tempByte = 0;
 bool newDataAvailable = false; // Nieuwe data beschikbaar

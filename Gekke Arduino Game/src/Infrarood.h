@@ -3,6 +3,8 @@
 
 #include <Arduino.h>
 
+#define BUFFER_SIZE1 8
+
 // Functies voor initialisatie en verwerking
 void initInfrarood();
 void processReceivedPulses();
@@ -18,6 +20,6 @@ extern bool sending;
 extern uint8_t bufferHead;
 extern uint8_t bufferTail;
 extern bool bufferOverflow;
-extern uint8_t pulseBuffer[];
+extern uint8_t pulseBuffer[BUFFER_SIZE1];
 extern bool newPulseAvailable;
 #endif
