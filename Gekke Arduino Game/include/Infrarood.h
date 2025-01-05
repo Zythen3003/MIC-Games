@@ -4,11 +4,11 @@
 #include <Arduino.h>
 
 #define BUFFER_SIZE1 16
-#define BURST_1_DURATION 95
-#define BURST_0_DURATION 48
-#define BURST_start_DURATION 510
-#define BURST_pausestart_DURATION 255
-#define PAUSE_DURATION 48
+#define BURST_1_DURATION 38 
+#define BURST_0_DURATION 19
+#define BURST_start_DURATION 342
+#define BURST_pausestart_DURATION 171
+#define PAUSE_DURATION 19
 
 // Functies voor initialisatie en verwerking
 void initInfrarood();

@@ -7,7 +7,6 @@
 #include "Infrarood.h"
 #include "Multiplayer.h"
 
-#define BUFFER_SIZE1 8
 #define BAUDRATE 9600
 #define PCF8574A_ADDR 0x21 // I2C address of the PCF8574A
 #define DIG_COOLDOWN 35000
@@ -40,6 +39,17 @@ ISR(TIMER0_COMPA_vect)
   {
     lastDigTime++;
   }
+
+  // Infrared stuff
+  readCount++;
+  if (burstCounter > 0)
+  {
+    burstCounter--;
+    if (burstCounter == 0 && sending)
+    {
+      sendNextBit();
+    }
+  }
 }
 
 void setupInterrupt0(void)
@@ -66,18 +76,10 @@ void timer0Setup(void)
   TCCR0B |= (1 << CS01);   // Prescaler of 8
 }
 
-void timer2Setup(void)
-{
-  TIMSK2 |= (1 << OCIE2A); // Enable compare match A interrupt for Timer2
-  TCCR2A |= (1 << WGM21);  // CTC mode
-  OCR2A = 20;               // Set compare match value for 38kHz (adjust as needed)
-  TCCR2B |= (1 << CS21);   // Prescaler of 8
-}
 
 void setup(void)
 {
   timer0Setup();
-  timer2Setup();
   sei();
   tft.begin();        // Initialize the display here
   tft.setRotation(1); // Adjust screen orientation to landscape mode

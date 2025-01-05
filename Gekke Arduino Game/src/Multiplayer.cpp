@@ -89,20 +89,6 @@ bool processCommand(uint8_t test)
     return false;
 }
 
-ISR(TIMER2_COMPA_vect)
-{
-  // Infrared stuff
-  readCount++;
-  if (burstCounter > 0)
-  {
-    burstCounter--;
-    if (burstCounter == 0 && sending)
-    {
-      sendNextBit();
-    }
-  }
-}
-
 ISR(INT0_vect)
 {
   uint16_t pulseDuration = readCount - lastFallingEdgeTime;

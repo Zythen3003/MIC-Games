@@ -16,36 +16,34 @@ bool joystickReset = false;
 
 bool renderPlayer2 = false;
 
-volatile unsigned long timerMillis = 0; // Millisecond counter
+volatile uint8_t overflowCount = 0;
 unsigned long gameTime = 0;             // In-game time in seconds
 unsigned long lastUpdateTime = 0;       // Store time of the last update for event synchronization
 
 // Timer2 initialization function
 void Timer2_Init()
 {
-    // // Clear Timer2 control registers
-    // TCCR2A = 0; // Normal mode
-    // TCCR2B = 0; // Normal mode
+    // Clear Timer2 control registers
+    TCCR2A = 0; // Normal mode
+    TCCR2B = 0; // Normal mode
 
-    // // Set Timer2 prescaler to 64 (this gives an interrupt roughly every 4.096ms)
-    // TCCR2B |= (1 << CS22); // Prescaler 64 (CS22 set)
-    // TCCR2B |= (1 << CS21); // Prescaler 64 (CS21 set)
+    // Set Timer2 prescaler to 1024
+    TCCR2B |= (1 << CS22) | (1 << CS21) | (1 << CS20); // Prescaler 1024
 
-    // // Enable Timer2 overflow interrupt
-    // TIMSK2 |= (1 << TOIE2); // Enable Timer2 overflow interrupt
+    // Enable Timer2 overflow interrupt
+    TIMSK2 |= (1 << TOIE2); // Enable Timer2 overflow interrupt
 
-    // // Initialize the timer counter to 0
-    // TCNT2 = 0;
+    // Initialize the timer counter to 0
+    TCNT2 = 0;
 }
 
 // Timer2 overflow interrupt handler
 ISR(TIMER2_OVF_vect)
 {
-    timerMillis++; // Increment the millisecond counter on each overflow
+    overflowCount++;
+    if (overflowCount >= 61) {
+        overflowCount = 0; // Reset counter
 
-    // Periodically update the game time (every 256ms, i.e., every 0.256 seconds in real time)
-    if (timerMillis % (256) == 0)
-    {               // Update every 256ms (approx. 0.256 real seconds)
         gameTime++; // Increment game time in seconds
         updateTimer();
     }

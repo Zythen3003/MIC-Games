@@ -92,25 +92,17 @@ void sendNextBit()
 // Functie om ontvangen pulsen te verwerken
 void processPulse(uint16_t pulseDuration)
 {
-    // Serial.print("Pulse breedte: ");
-    // Serial.println(pulseDuration);
+    Serial.print("Pulse breedte: ");
+    Serial.println(pulseDuration);
 
     //  drempelwaarde die duration vergelijkt waarna tempByte een 1 of een 0 krijgt
-    if (80 < pulseDuration && pulseDuration < 110)
+    if (30 <= pulseDuration && pulseDuration <= 49)
     {
-        // debug pulsbreedte:
-        Serial.print("Pulse breedte: ");
-        Serial.println(pulseDuration);
-
         tempByte = (tempByte << 1) | 0;
         receivedBits++;
     }
-    else if (130 < pulseDuration && pulseDuration < 160)
+    else if (50 <= pulseDuration && pulseDuration <= 65)
     {
-        // debug pulsbreedte:
-        Serial.print("Pulse breedte: ");
-        Serial.println(pulseDuration);
-
         tempByte = (tempByte << 1) | 1;
         receivedBits++;
     }
@@ -118,8 +110,6 @@ void processPulse(uint16_t pulseDuration)
     //  als er 8 bits zijn ontvangen kan de data worden uitgelezen in main door boolean newdataAvailable
     if (receivedBits == 8)
     {
-        Serial.print("tempByte: ");
-        Serial.println(tempByte, BIN);
         newDataAvailable = true; // Zet de vlag voor nieuwe data
         receivedBits = 0;        // Reset teller voor ontvangen bits
     }
