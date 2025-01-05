@@ -3,7 +3,7 @@
 #include "GameMechanics.h"
 #include <EEPROM.h>
 
-void Menu::handleMenuInput(int ticksSinceLastUpdate) {
+void Menu::handleMenuInput(int ticksSinceLastUpdate, int currentlevel) {
     if (Nunchuk.getState(NUNCHUK_ADDRESS)) {
         int joyX = Nunchuk.state.joy_x_axis;
 
@@ -19,7 +19,7 @@ void Menu::handleMenuInput(int ticksSinceLastUpdate) {
             int selectedOption = getSelectedOption();
 
             if (selectedOption == 0) { // Singleplayer selected                
-                startSingleplayer(ticksSinceLastUpdate);
+                startSingleplayer(ticksSinceLastUpdate, currentlevel);
             } else if (selectedOption == 1) { // Multiplayer selected                
                 startMultiplayer();
             }
@@ -27,10 +27,10 @@ void Menu::handleMenuInput(int ticksSinceLastUpdate) {
     }
 }
 
-void Menu::startSingleplayer(int ticksSinceLastUpdate) {
+void Menu::startSingleplayer(int ticksSinceLastUpdate, int currentlevel) {
     isSinglePlayer = true; // Set to singleplayer mode
     gameStarted = true; // Mark game as started
-    SetupGrid(ticksSinceLastUpdate); // Call SetupGrid() for the game
+    SetupGrid(ticksSinceLastUpdate, currentlevel); // Call SetupGrid() for the game
 }
 
 void Menu::startMultiplayer() {
@@ -54,14 +54,14 @@ void translateTouchToDisplay(int &touchX, int &touchY) {
     touchX = map(tempY, 0, SCREEN_WIDTH, SCREEN_WIDTH, 0);
 }
 
-void Menu::handleTouchInput(TS_Point tPoint, int ticksSinceLastUpdate) {
+void Menu::handleTouchInput(TS_Point tPoint, int ticksSinceLastUpdate, int currentLevel) {
     int touchX = tPoint.x;  // Map Y (raw) to X (display)
     int touchY = tPoint.y; // Map X (raw) to Y (display)
 
     translateTouchToDisplay(touchX, touchY);
     
     if (isTouchInRect(touchX, touchY, 20, 100, 130, 50)) {
-        startSingleplayer(ticksSinceLastUpdate);
+        startSingleplayer(ticksSinceLastUpdate, currentLevel);
     }
 
     if (isTouchInRect(touchX, touchY, 160, 100, 130, 50)) {

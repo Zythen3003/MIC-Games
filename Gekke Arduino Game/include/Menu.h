@@ -9,8 +9,8 @@ class Menu {
 public:
     Menu(Adafruit_ILI9341* tft);
 
-    void handleMenuInput(int ticksSinceLastUpdate); // Handles menu input
-    void handleTouchInput(TS_Point tPoint, int ticksSinceLastUpdate);
+    void handleMenuInput(int ticksSinceLastUpdate, int currentLevel); // Handles menu input
+    void handleTouchInput(TS_Point tPoint, int ticksSinceLastUpdate, int currentLevel); // Handles touch input
     void displayEndGameMessage(); // Display the end game message
     void drawMenu(); // Draws the entire menu
     void updateSelection(int direction); // Updates the selection (-1 for up, 1 for down)
@@ -19,11 +19,11 @@ public:
     int saveHighScore(int address, int newTime);
     int readIntFromEEPROM(int address);
     void loadHighScores();
+    bool isSinglePlayer; // True for singleplayer, false for multiplayer
     
 private:
     Adafruit_ILI9341* tft;
     int selectedOption; // Current selected option (0 = Singleplayer, 1 = Multiplayer)
-    bool isSinglePlayer; // True for singleplayer, false for multiplayer
     bool isNewHighScore = false;
     int savedHighScoreSingle = 0;
     int savedHighScoreMulti = 0;
@@ -31,7 +31,7 @@ private:
     int multiPlayerHighScoreAddress = 15;
     int previousSelectedOption;  // The previous selected option (for redrawing)
     
-    void startSingleplayer(int ticksSinceLastUpdate);
+    void startSingleplayer(int ticksSinceLastUpdate, int currentLevel);
     void startMultiplayer();
 };
 

@@ -9,11 +9,12 @@
 #define TFT_CS 10
 #define NUNCHUK_ADDRESS 0x52
 #define RADIUS_PLAYER 5
-#define GRID_SIZE 12    // Rows in the grid
+#define GRID_SIZE 6    // Rows in the grid
 #define TREASURE_COUNT 5   // Number of Treasures
 #define BUFFER_SIZE (2 * RADIUS_PLAYER * 2 * RADIUS_PLAYER)
 #define SCREEN_WIDTH 320
 #define SCREEN_HEIGHT 240
+#define SCOREBOARD_WIDTH 80
 
 // Global variables
 extern Adafruit_ILI9341 tft;
@@ -26,7 +27,7 @@ extern bool isTreasure;
 extern unsigned long gameTime;  // In-game time in seconds
 
 // Function Declarations
-void SetupGrid(int ticksSinceLastUpdate);
+void SetupGrid(int ticksSinceLastUpdate, int currentLevel);
 void displayScoreboard();
 void updatePosition();
 void updateTimer();

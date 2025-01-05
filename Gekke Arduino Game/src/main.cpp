@@ -18,6 +18,7 @@ Menu menu(&tft);          // Initialize the menu with the display
 Buzzer myBuzzer;          // Create an instance of the Buzzer class
 
 volatile uint16_t lastDigTime = 0; // Track the last dig time
+int currentLevel = 1;
 
 // Segment mapping for digits 0-9 for 7-segment display (common cathode)
 const uint8_t segmentMap[10] = {
@@ -37,6 +38,49 @@ ISR(TIMER0_COMPA_vect)
   {
     lastDigTime++;
   }
+}
+
+void transitionToNextLevel()
+{
+    TIMSK1 &= ~(1 << OCIE1A);  // Disable Timer1 interrupt
+    TCCR1B = 0;  // Stop Timer1
+    tft.fillScreen(ILI9341_DARKGREEN);
+    tft.setCursor(50, 50);
+    tft.setTextSize(2);
+    tft.setTextColor(ILI9341_WHITE);
+    tft.print("Level Complete!");
+    while (true)
+    {
+      Nunchuk.getState(NUNCHUK_ADDRESS); // Update the Nunchuk state
+      if (Nunchuk.state.c_button || Nunchuk.state.z_button)
+      {
+        break; // Exit the loop when a button is pressed
+      }
+    }
+    currentLevel++;
+    if (currentLevel > 3) {
+        currentLevel = 1;
+    }
+    SetupGrid(ticksSinceLastUpdate, currentLevel);
+    gameStarted = true;
+}
+
+void showMultiplayerRoundOutcome(bool playerWon)
+{
+    tft.fillScreen(ILI9341_BLACK);
+    tft.setCursor(50, 50);
+    tft.setTextSize(2);
+    tft.setTextColor(ILI9341_WHITE);
+    tft.print(playerWon ? "You Won!" : "You Lost!");
+    while (true)
+    {
+      Nunchuk.getState(NUNCHUK_ADDRESS); // Update the Nunchuk state
+      if (Nunchuk.state.c_button || Nunchuk.state.z_button)
+      {
+        break; // Exit the loop when a button is pressed
+      }
+    }
+    transitionToNextLevel();
 }
 
 void playCorrectSound(Buzzer &myBuzzer)
@@ -144,14 +188,14 @@ int main(void)
     if (!gameStarted)
     {
       // Handle menu input until a game mode is selected
-      menu.handleMenuInput(ticksSinceLastUpdate);
+      menu.handleMenuInput(ticksSinceLastUpdate, currentLevel);
 
       if (ts.touched())
       {
         // Retrieve touch data
         TS_Point tPoint = ts.getPoint();
 
-        menu.handleTouchInput(tPoint, ticksSinceLastUpdate);
+        menu.handleTouchInput(tPoint, ticksSinceLastUpdate, currentLevel);
       }
     }
     else
@@ -184,23 +228,16 @@ int main(void)
 
       if (isGameOver())
       {
-        tft.fillScreen(ILI9341_DARKGREEN);
-        myBuzzer.update(); // Continuously update the buzzer state
-        menu.displayEndGameMessage(); // Call the member function to display the end game message
-        // Wait until a button is pressed to proceed
-        while (true)
-        {
-          Nunchuk.getState(NUNCHUK_ADDRESS); // Update the Nunchuk state
-          if (Nunchuk.state.c_button || Nunchuk.state.z_button)
-          {
-            break; // Exit the loop when a button is pressed
-          }
-        }
-        tft.fillScreen(ILI9341_DARKGREEN);
-        myBuzzer.update();   // Update the buzzer state
-        menu.drawMenu();     // Return to the main menu
-        gameStarted = false; // Stop the game
+      if (!menu.isSinglePlayer)
+      {
+          showMultiplayerRoundOutcome(player1Score > player2Score);
       }
+      else
+      {
+          transitionToNextLevel();
+      }
+      
+    }
     }
   }
 

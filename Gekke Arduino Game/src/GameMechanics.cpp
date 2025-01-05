@@ -18,8 +18,7 @@ uint8_t player2Y;
 uint8_t grid[GRID_SIZE][GRID_SIZE];  // Grid to hold Treasures
 bool revealed[GRID_SIZE][GRID_SIZE]; // Keeps track of whether a cell has been dug
 uint8_t cellSize = SCREEN_HEIGHT / GRID_SIZE;
-uint8_t scoreboardWidth = 80;
-
+uint8_t gridSize = GRID_SIZE;
 bool joystickReset = false;
 
 volatile unsigned long timerMillis = 0; // Millisecond counter
@@ -57,7 +56,7 @@ ISR(TIMER2_OVF_vect)
     }
 }
 
-void SetupGrid(int ticksSinceLastUpdate)
+void SetupGrid(int ticksSinceLastUpdate, int currentLevel)
 {
     // Set up the display
     Nunchuk.begin(NUNCHUK_ADDRESS);
@@ -68,15 +67,19 @@ void SetupGrid(int ticksSinceLastUpdate)
     // Set up Timer2 to interrupt every second
     Timer2_Init();
     gameTime = 0; // Reset the game time to 0
+    
+    // Adjust grid size based on level
+    gridSize = GRID_SIZE + (currentLevel * 2);
+    cellSize = round(SCREEN_HEIGHT / (float)gridSize);
 
     // Draw horizontal lines
     for (int y = 0; y <= SCREEN_HEIGHT; y += cellSize)
     {
-        tft.drawLine(scoreboardWidth, y, SCREEN_WIDTH, y, ILI9341_BLACK);
+        tft.drawLine(SCOREBOARD_WIDTH, y, SCREEN_WIDTH, y, ILI9341_BLACK);
     }
 
     // Draw vertical lines (skip the first 4 columns for the scoreboard)
-    for (int x = scoreboardWidth; x <= SCREEN_WIDTH; x += cellSize)
+    for (int x = SCOREBOARD_WIDTH; x <= SCREEN_WIDTH; x += cellSize)
     {
         tft.drawLine(x, 0, x, SCREEN_HEIGHT, ILI9341_BLACK);
     }
@@ -155,7 +158,7 @@ void updateCell(bool isPlayer1, uint8_t gridX = 255, uint8_t gridY = 255)
 
 void gridToDisplayCoords(uint16_t &x, uint16_t &y)
 {
-    x = scoreboardWidth + ((x + 1) * cellSize) - (cellSize / 2);
+    x = SCOREBOARD_WIDTH + ((x + 1) * cellSize) - (cellSize / 2);
     y = (y + 1) * cellSize - (cellSize / 2);
 }
 
@@ -183,7 +186,7 @@ void movePlayer()
             joystickReset = false;
         }
         // Move down
-        else if (Nunchuk.state.joy_y_axis < centre - joystickThreshold && player1Y != GRID_SIZE - 1)
+        else if (Nunchuk.state.joy_y_axis < centre - joystickThreshold && player1Y != gridSize - 1)
         {
             updateCell(true, player1X, player1Y);
             player1Y += 1;
@@ -197,7 +200,7 @@ void movePlayer()
             joystickReset = false;
         }
         // Move right
-        else if (Nunchuk.state.joy_x_axis > centre + joystickThreshold && player1X != GRID_SIZE - 1)
+        else if (Nunchuk.state.joy_x_axis > centre + joystickThreshold && player1X != gridSize - 1)
         {
             updateCell(true, player1X, player1Y);
             player1X += 1;
