@@ -71,17 +71,11 @@ bool processCommand(uint8_t test)
         if (commandStack.peek(command)) {
             sendCommand(command);
         } else {
-            Serial.println("VERY BAD ERROR, NO COMMANDS ON STACK");
+            // Serial.println("VERY BAD ERROR, NO COMMANDS ON STACK");
         }
         break;
     default:
-        // @todo send command to resend last command
-        // maak een systeem dat de laatste command bijhoud (miss een lijst van een aantal commands)
-        // als de ontvanger aangeeft dat er een raar commando is gestuurt moet de ontvanger een ResendLastCommand sturen
-        // dan moet de verzender van het verkeerde command die ontvangen en vervolgens het command opnieuw sturen
-        // het kan ook gebeuren dat de ResendLastCommand verkeerd wordt verstuurt
-        // daarom een korte buffer van laatste commandos zodat dat ook wordt afgevangen
-        Serial.println("Unknown Command, sending resend command");
+        // Serial.println("Unknown Command, sending resend command");
         sendCommand(ResendLastCommand);
         break;
     }
