@@ -11,7 +11,8 @@ public:
 
     void handleMenuInput(int ticksSinceLastUpdate, int currentLevel); // Handles menu input
     void handleTouchInput(TS_Point tPoint, int ticksSinceLastUpdate, int currentLevel); // Handles touch input
-    void displayEndGameMessage(); // Display the end game message
+    void displayEndGameMessage(int currentLevel); // Display the end game message
+    void displayLevelMessage(int currentLevel); // Display the end game message
     void drawMenu(); // Draws the entire menu
     void updateSelection(int direction); // Updates the selection (-1 for up, 1 for down)
     int getSelectedOption(); // Returns the currently selected option
@@ -26,6 +27,7 @@ private:
     int selectedOption; // Current selected option (0 = Singleplayer, 1 = Multiplayer)
     bool isNewHighScore = false;
     int savedHighScoreSingle = 0;
+    int totalTime = 0;
     int savedHighScoreMulti = 0;
     int singlePlayerHighScoreAddress = 10;
     int multiPlayerHighScoreAddress = 15;

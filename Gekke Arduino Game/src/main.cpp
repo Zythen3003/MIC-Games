@@ -43,44 +43,25 @@ ISR(TIMER0_COMPA_vect)
 void transitionToNextLevel()
 {
     TIMSK1 &= ~(1 << OCIE1A);  // Disable Timer1 interrupt
-    TCCR1B = 0;  // Stop Timer1
-    tft.fillScreen(ILI9341_DARKGREEN);
-    tft.setCursor(50, 50);
-    tft.setTextSize(2);
-    tft.setTextColor(ILI9341_WHITE);
-    tft.print("Level Complete!");
-    while (true)
-    {
-      Nunchuk.getState(NUNCHUK_ADDRESS); // Update the Nunchuk state
-      if (Nunchuk.state.c_button || Nunchuk.state.z_button)
-      {
-        break; // Exit the loop when a button is pressed
-      }
-    }
-    currentLevel++;
-    if (currentLevel > 3) {
-        currentLevel = 1;
-    }
-    SetupGrid(ticksSinceLastUpdate, currentLevel);
-    gameStarted = true;
-}
+    TCCR1B = 0;  // Stop Timer
 
-void showMultiplayerRoundOutcome(bool playerWon)
-{
-    tft.fillScreen(ILI9341_BLACK);
-    tft.setCursor(50, 50);
-    tft.setTextSize(2);
-    tft.setTextColor(ILI9341_WHITE);
-    tft.print(playerWon ? "You Won!" : "You Lost!");
-    while (true)
-    {
-      Nunchuk.getState(NUNCHUK_ADDRESS); // Update the Nunchuk state
-      if (Nunchuk.state.c_button || Nunchuk.state.z_button)
-      {
-        break; // Exit the loop when a button is pressed
-      }
+    player1Score = 0; //reset playerscore voor volgende level
+    player2Score = 0; //reset playerscore voor volgende level
+
+    if (currentLevel > 2) {
+        menu.displayEndGameMessage(currentLevel);
+        gameStarted = false;
+        currentLevel = 1;
+        menu.drawMenu(); // gaat naar het eindscherm
+        return;          // Stop verdere verwerking
     }
-    transitionToNextLevel();
+    else
+    {
+        menu.displayLevelMessage(currentLevel);
+        currentLevel++;
+        SetupGrid(ticksSinceLastUpdate, currentLevel); //start volgende level
+        gameStarted = true;
+    }
 }
 
 void playCorrectSound(Buzzer &myBuzzer)
@@ -228,15 +209,7 @@ int main(void)
 
       if (isGameOver())
       {
-      if (!menu.isSinglePlayer)
-      {
-          showMultiplayerRoundOutcome(player1Score > player2Score);
-      }
-      else
-      {
-          transitionToNextLevel();
-      }
-      
+        transitionToNextLevel();
     }
     }
   }

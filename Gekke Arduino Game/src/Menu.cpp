@@ -153,32 +153,109 @@ void Menu::drawOption(int optionIndex, const char* text, bool selected) {
     tft->setTextSize(2);
     tft->setCursor(xPos + 20, 160);
     tft->print("Highscore");
-
 }
 
-
-void Menu::displayEndGameMessage() {
+void Menu::displayLevelMessage(int currentLevel) {
     tft->fillScreen(ILI9341_DARKGREEN); // Clear the screen
 
+    //text settings
     tft->setCursor(SCREEN_WIDTH / 2 - 80, SCREEN_HEIGHT / 2 - 40);
     tft->setTextSize(2);
     tft->setTextColor(ILI9341_BLACK);
 
-    // Display the end game message
-    if (player1Score > player2Score) {
-        tft->print("Player 1 Wins!");
-    } else if (player1Score < player2Score) {
-        tft->print("Player 2 Wins!");
-    } else {
-        tft->print("It's a Draw!");
+if(isSinglePlayer){
+    // Display singelplayer message
+    tft->print("Level ");
+    tft->print(currentLevel);
+    tft->print(" Complete!");
+    }
+    else
+    {
+    // Display multiplayer message
+        if (player1Score > player2Score) {
+            tft->print("Player 1 Wins level ");
+            tft->print(currentLevel);
+        } else if (player1Score < player2Score) {
+            tft->print("Player 1 Wins level ");
+            tft->print(currentLevel);
+        } else {
+            tft->print("It's a Draw!");
+        }
     }
 
-    saveHighScore(10, gameTime); // Save the high score to EEPROM
-    
-    // Display the final scores
+    // Display the final score
     tft->setCursor(SCREEN_WIDTH / 2 - 60, SCREEN_HEIGHT / 2);
     tft->print("Score: ");
     tft->print(gameTime);
+    tft->print("s");
+
+    // Display the final total score
+    totalTime = totalTime + gameTime;
+    tft->setCursor(SCREEN_WIDTH / 2 - 60, SCREEN_HEIGHT / 1.5);
+    tft->print("Total Score: ");
+    tft->print(totalTime);
+    tft->print("s");
+
+    // Display the message to continue to next level
+    tft->setCursor(65, SCREEN_HEIGHT / 2 + 60);
+    tft->setTextColor(ILI9341_RED);
+    tft->setTextSize(1);
+    tft->print("Press any button to start next level!");
+
+    // checkt of er op een knop wordt gedrukt. Bij drukken returnen.
+    while (true)
+        {
+        Nunchuk.getState(NUNCHUK_ADDRESS); // Update the Nunchuk state
+        if (Nunchuk.state.c_button || Nunchuk.state.z_button)
+            {
+                break; // Exit the loop when a button is pressed
+            }
+        }
+
+    return;
+}
+
+//display die weer wordt gegeven na het laatste level
+void Menu::displayEndGameMessage(int currentLevel) {
+    tft->fillScreen(ILI9341_DARKGREEN); // Clear the screen
+
+    //text settings
+    tft->setCursor(SCREEN_WIDTH / 2 - 60, SCREEN_HEIGHT / 2 - 40);
+    tft->setTextSize(2);
+    tft->setTextColor(ILI9341_BLACK);
+
+    if(isSinglePlayer){
+        // Display singelplayer message
+        tft->print("Game over!");
+    }
+    else
+    {
+        // Display multiplayer message
+        if (player1Score > player2Score) {
+            tft->print("Player 1 Wins level ");
+            tft->print(currentLevel);
+        } else if (player1Score < player2Score) {
+              tft->print("Player 1 Wins level ");
+            tft->print(currentLevel);
+         } else {
+              tft->print("It's a Draw!");
+         }
+     }
+
+    //Onthoud total time zodat die vergeleken kan worden met de highscore
+    totalTime = totalTime + gameTime;
+    saveHighScore(10, totalTime); // Save the high score to EEPROM
+    
+    // Display the final score
+    tft->setCursor(SCREEN_WIDTH / 2 - 60, SCREEN_HEIGHT / 2);
+    tft->print("Score: ");
+    tft->print(gameTime);
+    tft->print("s");
+
+    // Display the final total score
+    tft->setCursor(SCREEN_WIDTH / 2 - 60, SCREEN_HEIGHT / 1.5);
+    tft->print("Total Score: ");
+    tft->print(totalTime);
     tft->print("s");
 
     // Display a special message if a new high score was achieved
@@ -189,15 +266,21 @@ void Menu::displayEndGameMessage() {
     }
 
     // Display the message to return to the main menu
-    tft->setCursor(10, SCREEN_HEIGHT / 2 + 60);
-    tft->setTextColor(ILI9341_BLACK);
+    tft->setCursor(70, SCREEN_HEIGHT / 2 + 70);
+    tft->setTextColor(ILI9341_BLUE);
     tft->setTextSize(1);
     tft->print("Press button to return to Main Menu...");
 
-     // Reset the game state to prepare for the next game or menu
-    player1Score = 0;
-    player2Score = 0;
-
+    // checkt of er op een knop wordt gedrukt. Bij drukken returnen.
+    while (true)
+    {
+      Nunchuk.getState(NUNCHUK_ADDRESS); // Update the Nunchuk state
+      if (Nunchuk.state.c_button || Nunchuk.state.z_button)
+      {
+        break; // Exit the loop when a button is pressed
+      }
+    }
+    return;
 }
 
 int Menu::readIntFromEEPROM(int address) {
