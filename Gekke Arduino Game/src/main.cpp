@@ -4,7 +4,10 @@
 #include <HardwareSerial.h>
 #include <GameMechanics.h>
 #include "buzzer.h" // Include the buzzer header
+#include "Infrarood.h"
+#include "Multiplayer.h"
 
+#define BUFFER_SIZE1 8
 #define BAUDRATE 9600
 #define PCF8574A_ADDR 0x21 // I2C address of the PCF8574A
 #define DIG_COOLDOWN 35000
@@ -39,6 +42,14 @@ ISR(TIMER0_COMPA_vect)
   }
 }
 
+void setupInterrupt0(void)
+{
+  EICRA |= (1 << ISC01) | (1 << ISC00);
+  EIMSK |= (1 << INT0);   // Zet de interrupt enable voor INT0
+  DDRD &= ~(1 << DDD2);   // Zet PD2 (INT0) als ingang
+  PORTD |= (1 << PORTD2); // Zet pull-up weerstand aan
+}
+
 void playCorrectSound(Buzzer &myBuzzer)
 {
   myBuzzer.playTone(59, 10);
@@ -47,7 +58,7 @@ void playCorrectSound(Buzzer &myBuzzer)
   myBuzzer.playTone(659, 15); // E5 note for 200ms
 }
 
-void timerSetup(void)
+void timer0Setup(void)
 {
   TIMSK0 |= (1 << OCIE0A); // enable comp match a interrupt
   TCCR0A |= (1 << WGM01);  // CTC-mode
@@ -55,13 +66,25 @@ void timerSetup(void)
   TCCR0B |= (1 << CS01);   // Prescaler of 8
 }
 
+void timer2Setup(void)
+{
+  TIMSK2 |= (1 << OCIE2A); // Enable compare match A interrupt for Timer2
+  TCCR2A |= (1 << WGM21);  // CTC mode
+  OCR2A = 20;               // Set compare match value for 38kHz (adjust as needed)
+  TCCR2B |= (1 << CS21);   // Prescaler of 8
+}
+
 void setup(void)
 {
-  timerSetup();
+  timer0Setup();
+  timer2Setup();
   sei();
   tft.begin();        // Initialize the display here
   tft.setRotation(1); // Adjust screen orientation to landscape mode
   Serial.begin(9600);
+
+  DDRD |= (1 << DDD6);  // Zet PD6 (OC0A) als uitgang voor IR
+  setupInterrupt0();
 
   ts.begin();
 
@@ -76,7 +99,6 @@ void setup(void)
 
   // Draw the initial menu
   menu.drawMenu();
-  // myBuzzer.testBuzzer(); // Test the buzzer
 }
 
 // Display the cooldown for the digAction on the 7-segment display
@@ -99,13 +121,28 @@ int main(void)
 
   while (1)
   {
+    processReceivedPulses(); // Verwerk ontvangen signalen
+
+    if (newDataAvailable)
+    { // Controleer of nieuwe data beschikbaar is
+      Serial.print("Ontvangen byte: ");
+      Serial.println(tempByte, BIN);
+
+      if (processCommand(tempByte))
+      {
+        menu.startMultiplayerGame();
+      }
+
+      newDataAvailable = false; // Reset de vlag
+      tempByte = 0;             // Reset tempByte
+    }
 
     if (!gameStarted)
     {
       // Handle menu input until a game mode is selected
       menu.handleMenuInput();
 
-      if (ts.touched())
+      if (ts.touched() && menu.isSinglePlayer)
       {
         // Retrieve touch data
         TS_Point tPoint = ts.getPoint();
@@ -129,9 +166,13 @@ int main(void)
 
       if (Nunchuk.state.z_button && lastDigTime >= DIG_COOLDOWN)
       {
+        // uint8_t dataToSend = 0b10101010; // Voorbeelddata
+        // sendDataByte(dataToSend); // Verstuur de data maar één keer
 
         digAction(true);
-        updateScore();
+
+        if (!menu.isSinglePlayer)
+          sendCommand(Dig);
 
         if (isTreasure)
           playCorrectSound(myBuzzer);

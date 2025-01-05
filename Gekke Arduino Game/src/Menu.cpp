@@ -1,23 +1,20 @@
 #include "menu.h"
 #include "Nunchuk.h"
 #include "GameMechanics.h"
+#include <Multiplayer.h>
 #include <EEPROM.h>
 
 void Menu::handleMenuInput() {
     if (Nunchuk.getState(NUNCHUK_ADDRESS)) {
-        int joyX = Nunchuk.state.joy_x_axis;
-
         // Navigate menu using joystick input
-        if (joyX < 100) { // Left
+        if (Nunchuk.state.joy_x_axis < 100) { // Left
             updateSelection(-1);
-        } else if (joyX > 150) { // Right
+        } else if (Nunchuk.state.joy_x_axis > 150) { // Right
             updateSelection(1);
         }
 
         // Confirm menu selection with the Z button
         if (Nunchuk.state.z_button) {
-            int selectedOption = getSelectedOption();
-
             if (selectedOption == 0) { // Singleplayer selected                
                 startSingleplayer();
             } else if (selectedOption == 1) { // Multiplayer selected                
@@ -30,17 +27,27 @@ void Menu::handleMenuInput() {
 void Menu::startSingleplayer() {
     isSinglePlayer = true; // Set to singleplayer mode
     gameStarted = true; // Mark game as started
-    SetupGrid(); // Call SetupGrid() for the game
+    setPlayer1Coordinates(true);
+    SetupGrid(isSinglePlayer); // Call SetupGrid() for the game
 }
 
 void Menu::startMultiplayer() {
-    isSinglePlayer = false; // Set to multiplayer mode
+     // Set to multiplayer mode
     gameStarted = false; // Mark game as started
     tft->fillScreen(ILI9341_DARKGREEN);
     tft->setTextColor(ILI9341_BLACK);
     tft->setTextSize(3);
     tft->setCursor(30, 20);
     tft->println("Multiplayer mode");
+
+    sendCommand(JoinGame);
+}
+
+void Menu::startMultiplayerGame() {
+    isSinglePlayer = false;
+    gameStarted = true;
+
+    SetupGrid(isSinglePlayer);
 }
 
 bool isTouchInRect(int touchX, int touchY, int rectX, int rectY, int rectWidth, int rectHeight) {
@@ -116,10 +123,6 @@ void Menu::updateSelection(int direction) {
 
     // Teken de nieuwe selectie
     drawOption(selectedOption, selectedOption == 0 ? "Solo" : "Co-Op", true);
-}
-// Returns the currently selected option
-int Menu::getSelectedOption() {
-    return selectedOption;
 }
 
 // Draws a specific menu option

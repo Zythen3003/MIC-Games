@@ -1,6 +1,7 @@
 #ifndef GAME_MECHANICS_H
 #define GAME_MECHANICS_H
 
+#include <stdint.h>
 #include "Adafruit_ILI9341.h"
 #include "Nunchuk.h"
 
@@ -21,12 +22,13 @@ extern Adafruit_ILI9341 tft;
 // Other game mechanics function prototypes
 bool isGameOver();
 extern uint8_t player1Score;
-extern uint8_t player2Score;
+extern uint8_t player1X;
+extern uint8_t player1Y;
 extern bool isTreasure;
 extern unsigned long gameTime;  // In-game time in seconds
 
 // Function Declarations
-void SetupGrid();
+void SetupGrid(bool isSingleplayer);
 void displayScoreboard();
 void updatePosition();
 void updateTimer();
@@ -39,5 +41,6 @@ void doGameLoop();
 void movePlayer();
 void gridToDisplayCoords(uint16_t &x, uint16_t &y);
 void updateCell(bool isPlayer1, uint8_t gridX = 255, uint8_t gridY = 255);
+void setPlayer1Coordinates(bool isLeader);
 
 #endif

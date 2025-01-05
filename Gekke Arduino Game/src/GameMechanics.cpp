@@ -1,25 +1,20 @@
-#include <stdint.h>
 #include <GameMechanics.h>
 #include <HardwareSerial.h>
-
-// Global Variables
-extern Adafruit_ILI9341 tft;
+#include <Multiplayer.h>
 
 uint8_t player1Score = 0; // Initialize player1Score
-uint8_t player2Score = 0; // Initialize player2Score
-bool isTreasure = false;  // Initialize isTreasure
-
-uint8_t player1X = 0;
-uint8_t player1Y = 0;
-uint8_t player2X;
-uint8_t player2Y;
+uint8_t player1X;
+uint8_t player1Y;
 
 uint8_t grid[GRID_SIZE][GRID_SIZE];  // Grid to hold Treasures
 bool revealed[GRID_SIZE][GRID_SIZE]; // Keeps track of whether a cell has been dug
 uint8_t cellSize = SCREEN_HEIGHT / GRID_SIZE;
 uint8_t scoreboardWidth = 80;
 
+bool isTreasure = false; // Initialize isTreasure
 bool joystickReset = false;
+
+bool renderPlayer2 = false;
 
 volatile unsigned long timerMillis = 0; // Millisecond counter
 unsigned long gameTime = 0;             // In-game time in seconds
@@ -28,19 +23,19 @@ unsigned long lastUpdateTime = 0;       // Store time of the last update for eve
 // Timer2 initialization function
 void Timer2_Init()
 {
-    // Clear Timer2 control registers
-    TCCR2A = 0; // Normal mode
-    TCCR2B = 0; // Normal mode
+    // // Clear Timer2 control registers
+    // TCCR2A = 0; // Normal mode
+    // TCCR2B = 0; // Normal mode
 
-    // Set Timer2 prescaler to 64 (this gives an interrupt roughly every 4.096ms)
-    TCCR2B |= (1 << CS22); // Prescaler 64 (CS22 set)
-    TCCR2B |= (1 << CS21); // Prescaler 64 (CS21 set)
+    // // Set Timer2 prescaler to 64 (this gives an interrupt roughly every 4.096ms)
+    // TCCR2B |= (1 << CS22); // Prescaler 64 (CS22 set)
+    // TCCR2B |= (1 << CS21); // Prescaler 64 (CS21 set)
 
-    // Enable Timer2 overflow interrupt
-    TIMSK2 |= (1 << TOIE2); // Enable Timer2 overflow interrupt
+    // // Enable Timer2 overflow interrupt
+    // TIMSK2 |= (1 << TOIE2); // Enable Timer2 overflow interrupt
 
-    // Initialize the timer counter to 0
-    TCNT2 = 0;
+    // // Initialize the timer counter to 0
+    // TCNT2 = 0;
 }
 
 // Timer2 overflow interrupt handler
@@ -56,8 +51,10 @@ ISR(TIMER2_OVF_vect)
     }
 }
 
-void SetupGrid()
+void SetupGrid(bool isSingleplayer)
 {
+    renderPlayer2 = !isSingleplayer;
+
     // Set up the display
     Nunchuk.begin(NUNCHUK_ADDRESS);
     tft.setRotation(1);
@@ -83,7 +80,10 @@ void SetupGrid()
     // Generate Treasures
     generateTreasures();
     displayScoreboard();
+    
     updateCell(true);
+    if (!isSingleplayer)
+        updateCell(false); 
 }
 
 void doGameLoop()
@@ -115,7 +115,10 @@ void updateCell(bool isPlayer1, uint8_t gridX = 255, uint8_t gridY = 255)
 
     if (isPlayerCell)
     {
-        tft.fillCircle(x, y, RADIUS_PLAYER, ILI9341_BLUE);
+        if (isPlayer1)
+            tft.fillCircle(x, y, RADIUS_PLAYER, ILI9341_BLUE);
+        else
+            tft.fillCircle(x, y, RADIUS_PLAYER, ILI9341_RED);
     }
     else
     {
@@ -137,7 +140,10 @@ void updateCell(bool isPlayer1, uint8_t gridX = 255, uint8_t gridY = 255)
 
             if (isPlayerCell)
             {
-                tft.fillCircle(x, y, RADIUS_PLAYER, ILI9341_BLUE);
+                if (isPlayer1)
+                    tft.fillCircle(x, y, RADIUS_PLAYER, ILI9341_BLUE);
+                else
+                    tft.fillCircle(x, y, RADIUS_PLAYER, ILI9341_RED);
             }
 
             // Count the number of adjacent mines
@@ -169,7 +175,7 @@ void movePlayer()
     if (abs(Nunchuk.state.joy_x_axis - centre) < joystickThreshold && abs(Nunchuk.state.joy_y_axis - centre) < joystickThreshold)
     {
         joystickReset = true;
-    }    
+    }
 
     // Only move if the joystick has reset to center
     if (joystickReset)
@@ -179,6 +185,8 @@ void movePlayer()
         {
             updateCell(true, player1X, player1Y);
             player1Y -= 1;
+            if (renderPlayer2)
+                sendCommand(MoveUp);
             joystickReset = false;
         }
         // Move down
@@ -186,6 +194,8 @@ void movePlayer()
         {
             updateCell(true, player1X, player1Y);
             player1Y += 1;
+            if (renderPlayer2)
+                sendCommand(MoveDown);
             joystickReset = false;
         }
         // Move left
@@ -193,6 +203,8 @@ void movePlayer()
         {
             updateCell(true, player1X, player1Y);
             player1X -= 1;
+            if (renderPlayer2)
+                sendCommand(MoveLeft);
             joystickReset = false;
         }
         // Move right
@@ -200,10 +212,13 @@ void movePlayer()
         {
             updateCell(true, player1X, player1Y);
             player1X += 1;
+            if (renderPlayer2)
+                sendCommand(MoveRight);
             joystickReset = false;
         }
 
-        if (!joystickReset) {
+        if (!joystickReset)
+        {
             updatePosition();
             updateCell(true);
         }
@@ -317,7 +332,8 @@ void displayScoreboard()
     updateTimer();
 }
 
-void updatePosition() {
+void updatePosition()
+{
     tft.setTextSize(1);
 
     // Clear previous grid position if it has changed
@@ -349,9 +365,9 @@ void updateScore()
 
     // Clear previous grid position if it has changed
     tft.fillRect(55, 55, 25, 40, ILI9341_WHITE); // Clear the player 1 and player 2 scores
-    tft.setCursor(5, 65);    // Position for "Player 1:"
-    tft.print("Player 1: "); // Print the score of Player 1
-    tft.print(player1Score); // Print the score of Player 1
+    tft.setCursor(5, 65);                        // Position for "Player 1:"
+    tft.print("Player 1: ");                     // Print the score of Player 1
+    tft.print(player1Score);                     // Print the score of Player 1
 
     tft.setCursor(5, 85); // Position for "Player 2:"
     tft.print("Player 2: ");
@@ -364,4 +380,11 @@ bool isGameOver()
         return true;
 
     return false;
+}
+
+void setPlayer1Coordinates(bool isLeader) {
+    if (isLeader)
+        player1X = player1Y = 0;
+    else
+        player1X = player1Y = GRID_SIZE-1;
 }
