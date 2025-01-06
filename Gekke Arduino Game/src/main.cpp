@@ -4,6 +4,8 @@
 #include <HardwareSerial.h>
 #include <GameMechanics.h>
 #include "buzzer.h" // Include the buzzer header
+#include "Infrarood.h"
+#include "Multiplayer.h"
 
 #define BAUDRATE 9600
 #define PCF8574A_ADDR 0x21 // I2C address of the PCF8574A
@@ -37,6 +39,25 @@ ISR(TIMER0_COMPA_vect)
   {
     lastDigTime++;
   }
+
+  // Infrared stuff
+  readCount++;
+  if (burstCounter > 0)
+  {
+    burstCounter--;
+    if (burstCounter == 0 && sending)
+    {
+      sendNextBit();
+    }
+  }
+}
+
+void setupInterrupt0(void)
+{
+  EICRA |= (1 << ISC01) | (1 << ISC00);
+  EIMSK |= (1 << INT0);   // Zet de interrupt enable voor INT0
+  DDRD &= ~(1 << DDD2);   // Zet PD2 (INT0) als ingang
+  PORTD |= (1 << PORTD2); // Zet pull-up weerstand aan
 }
 
 void playCorrectSound(Buzzer &myBuzzer)
@@ -47,7 +68,7 @@ void playCorrectSound(Buzzer &myBuzzer)
   myBuzzer.playTone(659, 15); // E5 note for 200ms
 }
 
-void timerSetup(void)
+void timer0Setup(void)
 {
   TIMSK0 |= (1 << OCIE0A); // enable comp match a interrupt
   TCCR0A |= (1 << WGM01);  // CTC-mode
@@ -55,13 +76,56 @@ void timerSetup(void)
   TCCR0B |= (1 << CS01);   // Prescaler of 8
 }
 
+void playNonBlockingCorrectSound(Buzzer &myBuzzer) { // Plays the melody non-blocking.
+  static int soundStep = 0; // Tracks the current tone in the sequence.
+  static unsigned long toneStartTick = 0; // Stores the starting time of the current tone.
+  static bool isPlayingMelody = false; // Flag to indicate if the melody is currently playing.
+
+  // Define the tones with their frequencies and durations.
+  const int tones[][2] = {
+    {59, 10}, 
+    {324, 15},
+    {440, 15},
+    {523, 15},
+    {625, 15}
+  };
+
+  // If the melody is not currently playing
+  if (!isPlayingMelody) { 
+    // Start playing the melody.
+    isPlayingMelody = true;
+    // Record the starting time of the current tone. 
+    toneStartTick = TCNT1; 
+
+    // Play the current tone. 
+    myBuzzer.playTone(tones[soundStep][0], tones[soundStep][1]);
+
+    // Move to the next tone in the sequence. 
+    soundStep = (soundStep + 1) % 5; 
+  }
+
+  // Check if the current tone has finished playing.
+  if ((TCNT1 - toneStartTick) >= tones[soundStep][1] && isPlayingMelody) { 
+    // Stop playing the melody.
+    isPlayingMelody = false; 
+    // Record the starting time of the next tone. 
+    toneStartTick = TCNT1; 
+  }
+
+  // Update the buzzer state.
+  myBuzzer.update(); 
+}
+
 void setup(void)
 {
-  timerSetup();
+  timer0Setup();
   sei();
   tft.begin();        // Initialize the display here
   tft.setRotation(1); // Adjust screen orientation to landscape mode
   Serial.begin(9600);
+
+  DDRD |= (1 << DDD6);  // Zet PD6 (OC0A) als uitgang voor IR
+  setupInterrupt0();
 
   ts.begin();
 
@@ -76,7 +140,6 @@ void setup(void)
 
   // Draw the initial menu
   menu.drawMenu();
-  // myBuzzer.testBuzzer(); // Test the buzzer
 }
 
 // Display the cooldown for the digAction on the 7-segment display
@@ -99,13 +162,28 @@ int main(void)
 
   while (1)
   {
+    processReceivedPulses(); // Verwerk ontvangen signalen
+
+    if (newDataAvailable)
+    { // Controleer of nieuwe data beschikbaar is
+      Serial.print("Ontvangen byte: ");
+      Serial.println(tempByte, BIN);
+
+      if (processCommand(tempByte))
+      {
+        menu.startMultiplayerGame();
+      }
+
+      newDataAvailable = false; // Reset de vlag
+      tempByte = 0;             // Reset tempByte
+    }
 
     if (!gameStarted)
     {
       // Handle menu input until a game mode is selected
       menu.handleMenuInput();
 
-      if (ts.touched())
+      if (ts.touched() && menu.isSinglePlayer)
       {
         // Retrieve touch data
         TS_Point tPoint = ts.getPoint();
@@ -129,14 +207,19 @@ int main(void)
 
       if (Nunchuk.state.z_button && lastDigTime >= DIG_COOLDOWN)
       {
+        // uint8_t dataToSend = 0b10101010; // Voorbeelddata
+        // sendDataByte(dataToSend); // Verstuur de data maar één keer
 
         digAction(true);
-        updateScore();
+
+        if (!menu.isSinglePlayer)
+          sendCommand(Dig);
 
         if (isTreasure)
-          playCorrectSound(myBuzzer);
-
-        isTreasure = false; // Reset the isTreasure flag
+        {
+          playNonBlockingCorrectSound(myBuzzer);
+          isTreasure = false; // Reset the isTreasure flag
+        }
         lastDigTime = 0;    // Reset last dig time after action
       }
 

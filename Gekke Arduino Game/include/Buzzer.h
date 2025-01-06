@@ -17,11 +17,10 @@ public:
     Buzzer();// Constructor: Initializes the buzzer and related timers
     void update();    // Update method to track time and manage tone playback
     static void noTone(); // Static method to stop the tone (turn off the buzzer)
-    void playTone(Frequency frequency, unsigned long duration);   // Method to play a tone with a specified frequency and duration
+    void playTone(unsigned int frequency, unsigned long duration);   // Method to play a tone with a specified frequency and duration
     void nonBlockingDelay(unsigned long duration); // Method to delay execution without blocking
-
-private:
-    void setupTimer1(Frequency frequency);// Private method to setup Timer1 for generating tone frequency
+    void setupTimer1(unsigned int frequency);// Private method to setup Timer1 for generating tone frequency
+   
 };
 
 #endif
