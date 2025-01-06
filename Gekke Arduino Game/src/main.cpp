@@ -76,6 +76,45 @@ void timer0Setup(void)
   TCCR0B |= (1 << CS01);   // Prescaler of 8
 }
 
+void playNonBlockingCorrectSound(Buzzer &myBuzzer) { // Plays the melody non-blocking.
+  static int soundStep = 0; // Tracks the current tone in the sequence.
+  static unsigned long toneStartTick = 0; // Stores the starting time of the current tone.
+  static bool isPlayingMelody = false; // Flag to indicate if the melody is currently playing.
+
+  // Define the tones with their frequencies and durations.
+  const int tones[][2] = {
+    {59, 10}, 
+    {324, 15},
+    {440, 15},
+    {523, 15},
+    {625, 15}
+  };
+
+  // If the melody is not currently playing
+  if (!isPlayingMelody) { 
+    // Start playing the melody.
+    isPlayingMelody = true;
+    // Record the starting time of the current tone. 
+    toneStartTick = TCNT1; 
+
+    // Play the current tone. 
+    myBuzzer.playTone(tones[soundStep][0], tones[soundStep][1]);
+
+    // Move to the next tone in the sequence. 
+    soundStep = (soundStep + 1) % 5; 
+  }
+
+  // Check if the current tone has finished playing.
+  if ((TCNT1 - toneStartTick) >= tones[soundStep][1] && isPlayingMelody) { 
+    // Stop playing the melody.
+    isPlayingMelody = false; 
+    // Record the starting time of the next tone. 
+    toneStartTick = TCNT1; 
+  }
+
+  // Update the buzzer state.
+  myBuzzer.update(); 
+}
 
 void setup(void)
 {
@@ -177,9 +216,10 @@ int main(void)
           sendCommand(Dig);
 
         if (isTreasure)
-          playCorrectSound(myBuzzer);
-
-        isTreasure = false; // Reset the isTreasure flag
+        {
+          playNonBlockingCorrectSound(myBuzzer);
+          isTreasure = false; // Reset the isTreasure flag
+        }
         lastDigTime = 0;    // Reset last dig time after action
       }
 
